@@ -1,0 +1,4 @@
+(sym_lib_table
+  (version 7)
+  (lib (name "epc611")(type "KiCad")(uri "/home/erhannis/projects/ESP_projects/EPC611_high_speed_camera/pcb/part_epc611/epc611.kicad_sym")(options "")(descr ""))
+)
