@@ -4,6 +4,12 @@
 
   (paper "A4")
 
+  (title_block
+    (title "ECP611 Breakout (populated)")
+    (date "2023-07-07")
+    (comment 1 "Taken from example at https://www.espros.com/downloads/01_Chips/Datasheet_epc611.pdf")
+  )
+
   (lib_symbols
     (symbol "Connector_Generic:Conn_01x01" (pin_names (offset 1.016) hide) (in_bom yes) (on_board yes)
       (property "Reference" "J" (at 0 2.54 0)
@@ -1098,6 +1104,14 @@
     (uuid ffeff60c-a7fd-47c3-845d-0cc7e5879525)
   )
 
+  (text_box "Notes:\n* PIN14, in the datasheet, is conncted to ground differently than the pins next to it.  This is suspicious.\n* I'm not sure if C9 *needs* to be on separate thinner line from C8 - I'll approximate it, anyway. "
+    (at 17.145 121.92 0) (size 86.995 68.58)
+    (stroke (width 0) (type default))
+    (fill (type none))
+    (effects (font (size 1.27 1.27)) (justify left top))
+    (uuid 652e1ff6-4925-475e-96ab-826f5f894ea4)
+  )
+
   (global_label "VDDIO" (shape input) (at 157.48 114.3 0) (fields_autoplaced)
     (effects (font (size 1.27 1.27)) (justify left))
     (uuid 73647976-e206-43b6-9a7b-52319f660cb1)
@@ -1105,7 +1119,7 @@
       (effects (font (size 1.27 1.27)) (justify left) hide)
     )
   )
-  (global_label "VDDBS" (shape input) (at 86.995 40.005 0) (fields_autoplaced)
+  (global_label "VDDBS" (shape output) (at 86.995 40.005 0) (fields_autoplaced)
     (effects (font (size 1.27 1.27)) (justify left))
     (uuid 75974031-5c34-46ee-a98a-387e353910de)
     (property "Intersheetrefs" "${INTERSHEET_REFS}" (at 96.0089 40.005 0)
@@ -1119,7 +1133,7 @@
       (effects (font (size 1.27 1.27)) (justify left) hide)
     )
   )
-  (global_label "VDDIO" (shape input) (at 86.995 97.79 0) (fields_autoplaced)
+  (global_label "VDDIO" (shape output) (at 86.995 97.79 0) (fields_autoplaced)
     (effects (font (size 1.27 1.27)) (justify left))
     (uuid beaf318d-d834-4e75-a501-54b8cf433483)
     (property "Intersheetrefs" "${INTERSHEET_REFS}" (at 95.4647 97.79 0)
@@ -1133,7 +1147,7 @@
     (property "Reference" "D3" (at 198.4375 72.39 0)
       (effects (font (size 1.27 1.27)))
     )
-    (property "Value" "LED" (at 198.4375 74.93 0)
+    (property "Value" "SFH4059" (at 198.4375 74.93 0)
       (effects (font (size 1.27 1.27)))
     )
     (property "Footprint" "" (at 200.025 78.74 0)
@@ -1210,7 +1224,7 @@
     (property "Reference" "D4" (at 190.8175 72.39 0)
       (effects (font (size 1.27 1.27)))
     )
-    (property "Value" "LED" (at 190.8175 74.93 0)
+    (property "Value" "SFH4059" (at 190.8175 74.93 0)
       (effects (font (size 1.27 1.27)))
     )
     (property "Footprint" "" (at 192.405 78.74 0)
@@ -1354,6 +1368,31 @@
       (project "EPC611_breakout"
         (path "/1d79333e-2a28-4ec3-b39a-97d5ef89db1a"
           (reference "Y1") (unit 1)
+        )
+      )
+    )
+  )
+
+  (symbol (lib_id "Connector_Generic:Conn_01x01") (at 162.56 82.55 0) (unit 1)
+    (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
+    (uuid 4d146bce-e260-4de9-975d-948cec374270)
+    (property "Reference" "J4" (at 165.1 81.28 0)
+      (effects (font (size 1.27 1.27)) (justify left))
+    )
+    (property "Value" "Conn_01x01" (at 165.1 83.82 0)
+      (effects (font (size 1.27 1.27)) (justify left))
+    )
+    (property "Footprint" "" (at 162.56 82.55 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Datasheet" "~" (at 162.56 82.55 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (pin "1" (uuid 818396d8-3ead-4cfe-a300-92d1ca747db0))
+    (instances
+      (project "EPC611_breakout"
+        (path "/1d79333e-2a28-4ec3-b39a-97d5ef89db1a"
+          (reference "J4") (unit 1)
         )
       )
     )
@@ -1518,7 +1557,7 @@
     (property "Reference" "D1" (at 166.37 53.6575 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
-    (property "Value" "D_Schottky" (at 166.37 56.1975 90)
+    (property "Value" "BAS40" (at 166.37 56.1975 90)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Footprint" "" (at 163.83 54.61 0)
@@ -1595,7 +1634,7 @@
     (property "Reference" "C3" (at 170.815 59.69 90)
       (effects (font (size 1.27 1.27)))
     )
-    (property "Value" "C 120nF 20%" (at 170.815 62.23 90)
+    (property "Value" "C 100nF 20%" (at 170.815 62.23 90)
       (effects (font (size 1.27 1.27)))
     )
     (property "Footprint" "" (at 174.625 66.3448 0)
