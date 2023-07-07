@@ -1,0 +1,2 @@
+Remember from spec sheet:
+  no pull up/down on DATA_RDY
