@@ -1293,7 +1293,7 @@
     (uuid ffeff60c-a7fd-47c3-845d-0cc7e5879525)
   )
 
-  (text_box "Notes:\n* PIN14, in the datasheet, is conncted to ground differently than the pins next to it.  This is suspicious.\n* I'm not sure if C9 *needs* to be on separate thinner line from C8 - I'll approximate it, anyway.\n* D1 doesn't need the extra diode - it's just that they usually come in packages of two, and have three pins either way, so for clarity of the footprints...\n* The footprint for the LEDs was kinda arbitrary; it's about twice as wide as necessary, and slightly longer, but that seemed acceptable."
+  (text_box "Notes:\n* PIN14, in the datasheet, is conncted to ground differently than the pins next to it.  This is suspicious.\n* I'm not sure if C9 *needs* to be on separate thinner line from C8 - I'll approximate it, anyway.\n* D1 doesn't need the extra diode - it's just that they usually come in packages of two, and have three pins either way, so for clarity of the footprints..."
     (at 17.145 121.92 0) (size 86.995 68.58)
     (stroke (width 0) (type default))
     (fill (type none))
@@ -1339,7 +1339,7 @@
     (property "Value" "SFH4059S" (at 198.4375 74.93 0)
       (effects (font (size 1.27 1.27)))
     )
-    (property "Footprint" "LED_SMD:LED_PLCC-2_3.4x3.0mm_AK" (at 200.025 78.74 0)
+    (property "Footprint" "LED_SMD:LED_1206_3216Metric" (at 200.025 78.74 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Datasheet" "https://web.archive.org/web/20190302195426/https://dammedia.osram.info/media/resource/hires/osram-dam-2496016/SFH%204059S.pdf" (at 200.025 78.74 0)
@@ -1461,7 +1461,7 @@
     (property "Value" "SFH4059S" (at 190.8175 74.93 0)
       (effects (font (size 1.27 1.27)))
     )
-    (property "Footprint" "LED_SMD:LED_PLCC-2_3.4x3.0mm_AK" (at 192.405 78.74 0)
+    (property "Footprint" "LED_SMD:LED_1206_3216Metric" (at 192.405 78.74 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Datasheet" "https://web.archive.org/web/20190302195426/https://dammedia.osram.info/media/resource/hires/osram-dam-2496016/SFH%204059S.pdf" (at 192.405 78.74 0)
