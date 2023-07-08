@@ -1,4 +1,4 @@
 (fp_lib_table
   (version 7)
-  (lib (name "epc611")(type "KiCad")(uri "/home/erhannis/projects/ESP_projects/EPC611_high_speed_camera/pcb/footprint_epc611/epc611.pretty")(options "")(descr ""))
+  (lib (name "epc611")(type "KiCad")(uri "/home/erhannis/projects/ESP_projects/EPC611_high_speed_camera/pcb/part_epc611/epc611.pretty")(options "")(descr ""))
 )
