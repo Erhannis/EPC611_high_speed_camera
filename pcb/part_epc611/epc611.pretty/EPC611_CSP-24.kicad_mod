@@ -1,6 +1,6 @@
 (footprint "EPC611_CSP-24" (version 20221018) (generator pcbnew)
   (layer "F.Cu")
-  (descr "CSP-24, 5x5 raster, 2.7x2.78mm package, pitch 0.45mm; see https://www.espros.com/downloads/01_Chips/Datasheet_epc611.pdf")
+  (descr "CSP-24, 2.7x2.78mm package, pitch 0.45mm; see https://www.espros.com/downloads/01_Chips/Datasheet_epc611.pdf")
   (tags "CSP 24 0.45")
   (attr smd)
   (fp_text reference "REF**" (at 0 -2.2465) (layer "F.SilkS")

@@ -1,4 +1,4 @@
-22554390879951461
+22556079666224567
 Audio_Module
 Reverb_BTDR-1H
 Digital Reverberation Unit, http://www.belton.co.kr/inc/downfile.php?seq=17&file=pdf (footprint from http://www.uk-electronic.de/PDF/BTDR-1.pdf)
@@ -93561,6 +93561,13 @@ Zigbee_Module_MRF24J40MD
 0
 12
 12
+epc611
+EPC611_CSP-24
+CSP-24, 5x5 raster, 2.7x2.78mm package, pitch 0.45mm; see https://www.espros.com/downloads/01_Chips/Datasheet_epc611.pdf
+CSP 24 0.45
+0
+24
+24
 erhannis
 5vRelay
 Through hole straight pin header, 1x03, 2.54mm pitch, single row
