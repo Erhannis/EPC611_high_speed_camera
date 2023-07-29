@@ -292,79 +292,30 @@ void processCommand(String command) {
         uint8_t b1 = (uint8_t)(row_buf[k+1] & 0x00FF);
         uint8_t b2 = (uint8_t)(row_buf[k+2] & 0x00FF);
         uint8_t b3 = (uint8_t)(row_buf[k+3] & 0x00FF);
-
-        Serial.printf("%02X%02X%02X ", b1, b2, b3);
-
-        // uint16_t r1 = 0x11FF;
-        // uint16_t r2 = 0x11F0;
-        // uint16_t r3 = 0x1100;
-        // uint8_t b1 = (uint8_t)(r1 & 0x00FF);
-        // uint8_t b2 = (uint8_t)(r2 & 0x00FF);
-        // uint8_t b3 = (uint8_t)(r3 & 0x00FF);
-        
         uint16_t combinedInt1 = ((uint16_t)b1 << 4) | (b2 >> 4);
         uint16_t combinedInt2 = (b3 << 4) | (b2 & 0x0F);
-        // frame[((  i)*8)+(j*2  )] = (int16_t)(combinedInt1 << 4) >> 4;
-        // frame[((  i)*8)+(j*2+1)] = (int16_t)(combinedInt2 << 4) >> 4;
-        frame[((  i)*8)+(j*2  )] = combinedInt1;
-        frame[((  i)*8)+(j*2+1)] = combinedInt2;
-
-        // frame[((  i)*8)+(j*2  )] = (int16_t)(int8_t)b1;
-        // frame[((  i)*8)+(j*2+1)] = (int16_t)(int8_t)b3;
+        frame[((  i)*8)+(j*2  )] = (int16_t)(combinedInt1 << 4) >> 4;
+        frame[((  i)*8)+(j*2+1)] = (int16_t)(combinedInt2 << 4) >> 4;
       }
-      Serial.println();
       for (int j = 0; j < 4; j++) {
         int k = (j+4)*3;
         uint8_t b1 = (uint8_t)(row_buf[k+1] & 0x00FF);
         uint8_t b2 = (uint8_t)(row_buf[k+2] & 0x00FF);
         uint8_t b3 = (uint8_t)(row_buf[k+3] & 0x00FF);
-
-        Serial.printf("%02X%02X%02X ", b1, b2, b3);
-
-        // uint16_t r1 = 0x1180;
-        // uint16_t r2 = 0x1107;
-        // uint16_t r3 = 0x11FF;
-        // uint8_t b1 = (uint8_t)(r1 & 0x00FF);
-        // uint8_t b2 = (uint8_t)(r2 & 0x00FF);
-        // uint8_t b3 = (uint8_t)(r3 & 0x00FF);
-
         uint16_t combinedInt1 = ((uint16_t)b1 << 4) | (b2 >> 4);
         uint16_t combinedInt2 = (b3 << 4) | (b2 & 0x0F);
-        // frame[((7-i)*8)+(j*2  )] = (int16_t)(combinedInt1 << 4) >> 4;
-        // frame[((7-i)*8)+(j*2+1)] = (int16_t)(combinedInt2 << 4) >> 4;
-        frame[((7-i)*8)+(j*2  )] = combinedInt1;
-        frame[((7-i)*8)+(j*2+1)] = combinedInt2;
-
-        // frame[((7-i)*8)+(j*2  )] = (int16_t)(int8_t)b1;
-        // frame[((7-i)*8)+(j*2+1)] = (int16_t)(int8_t)b3;
+        frame[((7-i)*8)+(j*2  )] = (int16_t)(combinedInt1 << 4) >> 4;
+        frame[((7-i)*8)+(j*2+1)] = (int16_t)(combinedInt2 << 4) >> 4;
       }
-      Serial.println();
     }
     unsigned long stop = micros();
     Serial.printf("micros elapsed: %ld\n", stop-start);
     Serial.printf("micros delay: %ld\n", delay);
-    Serial.println();
-    printFrame(frame);
+    // Serial.println();
+    // printFrame(frame);
     Serial.println();
     printFrameScaled(frame);
     Serial.println();
-
-    Serial.println();
-    // uint16_t r1 = 0x11FF;
-    // uint16_t r2 = 0x11F0;
-    // uint16_t r3 = 0x1100;
-    uint16_t r1 = 0x1180;
-    uint16_t r2 = 0x1107;
-    uint16_t r3 = 0x11FF;
-    uint8_t b1 = (uint8_t)(r1 & 0x00FF);
-    uint8_t b2 = (uint8_t)(r2 & 0x00FF);
-    uint8_t b3 = (uint8_t)(r3 & 0x00FF);
-    uint16_t combinedInt1 = ((uint16_t)b1 << 4) | (b2 >> 4);
-    uint16_t combinedInt2 = ((b2 & 0x0F) << 8) | b3;
-    int16_t f1 = (int16_t)(combinedInt1 << 4) >> 4;
-    int16_t f2 = (int16_t)(combinedInt2 << 4) >> 4;
-    Serial.printf("0xFFF > 0x%04X\n", (uint16_t)f1);
-    Serial.printf("0x000 > 0x%04X\n", (uint16_t)f2);
   } else if (command == "dr") {
     int dataRdy = digitalRead(DATA_RDY);
     Serial.printf("dataRdy: %d\n", dataRdy);
