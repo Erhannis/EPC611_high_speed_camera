@@ -28,6 +28,8 @@ So, I coulda sworn the initial readings off the first chip I tried were non-garb
 #define DATA_RDY 27
 
 #define SPI_MODE SPI_MODE0
+#define AUTO_INIT 1
+#define AUTO_SHUTTER 1
 
 const uint16_t BS_STARTUP[] = {
   //DUMMY Load sequencer
@@ -159,6 +161,10 @@ void setup() {
   pinMode(DATA_RDY, INPUT);
   
   wait_ready();
+
+  if (AUTO_INIT) {
+    processCommand("init");
+  }
 }
 
 String incomingCommand = "";
@@ -197,6 +203,47 @@ inline int16_t s12_s16(int16_t x) {
   //CHECK Also, is this right?
 }
 
+void printFrame(int8_t frame[]) { //THINK assumes 8x8
+  for (int y = 0; y < 8; y++) {
+    for (int x = 0; x < 8; x++) {
+      Serial.printf("%02X ", (uint8_t)frame[(y*8)+x]);
+    }
+    Serial.println();
+  }
+}
+
+const int PALETTE_N = 7;
+const char PALETTE[] = {'#','I','o','*',':','-',' '};
+char paintMap[256];
+// void scaleForFrame(int8_t frame[]) {
+// }
+void printFrameScaled(int8_t frame[]) { //THINK assumes 8x8
+  int8_t min = 0x7F;
+  int8_t max = 0x80;
+  for (int i = 0; i < 8*8; i++) {
+    int8_t f = frame[i];
+    if (f < min) {
+      min = f;
+    }
+    if (f > max) {
+      max = f;
+    }
+  }
+  Serial.printf("minmax %d %d\n", min, max);
+
+  int rangeAB = max - min + 1;
+  for (int i = 0; i < 8*8; i++) {
+  }
+  for (int y = 0; y < 8; y++) {
+    for (int x = 0; x < 8; x++) {
+      int p = ((frame[(y*8)+x] - min) * (PALETTE_N-1) + rangeAB / 2) / rangeAB;  
+      //Serial.printf("%d", p);
+      Serial.print(PALETTE[p]);
+    }
+    Serial.println();
+  }
+}
+
 void processCommand(String command) {
   // Compare the received command with predefined commands
   if (command == "h" || command == "help") {
@@ -229,16 +276,6 @@ void processCommand(String command) {
     unsigned long start = micros();
     for (int i = 3; i >= 0; i--) {
       // Wait for data ready
-      // hspi->beginTransaction(SPISettings(spiClk, MSBFIRST, SPI_MODE));
-      // while (true) {
-      //   digitalWrite(HSPI_SS, LOW);
-      //   uint16_t rx = hspi->transfer16(0x3500);
-      //   digitalWrite(HSPI_SS, HIGH);
-      //   if (rx == 0x3598) {
-      //     Serial.printf("...tx/rx %04X/%04X ready\n", 0x3500, rx);
-      //   }
-      // }
-      // hspi->endTransaction();
       ds = micros();
       while (!digitalRead(DATA_RDY));
       delay += micros()-ds;
@@ -260,12 +297,7 @@ void processCommand(String command) {
     Serial.printf("micros elapsed: %ld\n", stop-start);
     Serial.printf("micros delay: %ld\n", delay);
     Serial.println();
-    for (int y = 0; y < 8; y++) {
-      for (int x = 0; x < 8; x++) {
-        Serial.printf("%02X ", (uint8_t)frame[(y*8)+x]);
-      }
-      Serial.println();
-    }
+    printFrameScaled(frame);
     Serial.println();
   } else if (command == "dr") {
     int dataRdy = digitalRead(DATA_RDY);
@@ -278,11 +310,12 @@ void processCommand(String command) {
 
 // the loop function runs over and over again until power down or reset
 void loop() {
-  //read_wafer_id();
-  readSerialCommand();
-  // int dataRdy = digitalRead(DATA_RDY);
-  // Serial.printf("dataRdy: %d\n", dataRdy);
-  // delay(1000);
+  if (AUTO_SHUTTER) {
+    processCommand("s");
+  } else {
+    readSerialCommand();
+  }
+  delay(250);
 }
 
 byte count = 0;
