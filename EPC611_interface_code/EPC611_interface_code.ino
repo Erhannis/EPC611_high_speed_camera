@@ -203,10 +203,10 @@ inline int16_t s12_s16(int16_t x) {
   //CHECK Also, is this right?
 }
 
-void printFrame(int8_t frame[]) { //THINK assumes 8x8
+void printFrame(int16_t frame[]) { //THINK assumes 8x8
   for (int y = 0; y < 8; y++) {
     for (int x = 0; x < 8; x++) {
-      Serial.printf("%02X ", (uint8_t)frame[(y*8)+x]);
+      Serial.printf("%04X ", (uint16_t)frame[(y*8)+x]);
     }
     Serial.println();
   }
@@ -215,13 +215,13 @@ void printFrame(int8_t frame[]) { //THINK assumes 8x8
 const int PALETTE_N = 7;
 const char PALETTE[] = {'#','I','o','*',':','-',' '};
 char paintMap[256];
-// void scaleForFrame(int8_t frame[]) {
+// void scaleForFrame(int16_t frame[]) {
 // }
-void printFrameScaled(int8_t frame[]) { //THINK assumes 8x8
-  int8_t min = 0x7F;
-  int8_t max = 0x80;
+void printFrameScaled(int16_t frame[]) { //THINK assumes 8x8
+  int16_t min = 0x07FF;
+  int16_t max = 0x8000;
   for (int i = 0; i < 8*8; i++) {
-    int8_t f = frame[i];
+    int16_t f = frame[i];
     if (f < min) {
       min = f;
     }
@@ -230,6 +230,11 @@ void printFrameScaled(int8_t frame[]) { //THINK assumes 8x8
     }
   }
   Serial.printf("minmax %d %d\n", min, max);
+  if (min == 0x07FF) {
+    min = 0x0000;
+  } else if (max == 0x8000) {
+    max = 0x0000;
+  }
 
   int rangeAB = max - min + 1;
   for (int i = 0; i < 8*8; i++) {
@@ -265,7 +270,7 @@ void processCommand(String command) {
     print_exchange(0x8200);
     print_exchange(0x5801); // Set trigger
     
-    int8_t frame[8*8]; //DUMMY int16
+    int16_t frame[8*8];
     uint16_t row_buf[24+1];
     uint8_t row2[24];
 
@@ -284,21 +289,82 @@ void processCommand(String command) {
       //DUMMY I'm dropping the least significant 4 bits
       for (int j = 0; j < 4; j++) {
         int k = j*3;
-        frame[((  i)*8)+(j*2  )] = (int8_t)(row_buf[k+1] & 0x00FF); //DUMMY int16
-        frame[((  i)*8)+(j*2+1)] = (int8_t)(row_buf[k+3] & 0x00FF);
+        uint8_t b1 = (uint8_t)(row_buf[k+1] & 0x00FF);
+        uint8_t b2 = (uint8_t)(row_buf[k+2] & 0x00FF);
+        uint8_t b3 = (uint8_t)(row_buf[k+3] & 0x00FF);
+
+        Serial.printf("%02X%02X%02X ", b1, b2, b3);
+
+        // uint16_t r1 = 0x11FF;
+        // uint16_t r2 = 0x11F0;
+        // uint16_t r3 = 0x1100;
+        // uint8_t b1 = (uint8_t)(r1 & 0x00FF);
+        // uint8_t b2 = (uint8_t)(r2 & 0x00FF);
+        // uint8_t b3 = (uint8_t)(r3 & 0x00FF);
+        
+        uint16_t combinedInt1 = ((uint16_t)b1 << 4) | (b2 >> 4);
+        uint16_t combinedInt2 = (b3 << 4) | (b2 & 0x0F);
+        // frame[((  i)*8)+(j*2  )] = (int16_t)(combinedInt1 << 4) >> 4;
+        // frame[((  i)*8)+(j*2+1)] = (int16_t)(combinedInt2 << 4) >> 4;
+        frame[((  i)*8)+(j*2  )] = combinedInt1;
+        frame[((  i)*8)+(j*2+1)] = combinedInt2;
+
+        // frame[((  i)*8)+(j*2  )] = (int16_t)(int8_t)b1;
+        // frame[((  i)*8)+(j*2+1)] = (int16_t)(int8_t)b3;
       }
+      Serial.println();
       for (int j = 0; j < 4; j++) {
         int k = (j+4)*3;
-        frame[((7-i)*8)+(j*2  )] = (int8_t)(row_buf[k+1] & 0x00FF);
-        frame[((7-i)*8)+(j*2+1)] = (int8_t)(row_buf[k+3] & 0x00FF);
+        uint8_t b1 = (uint8_t)(row_buf[k+1] & 0x00FF);
+        uint8_t b2 = (uint8_t)(row_buf[k+2] & 0x00FF);
+        uint8_t b3 = (uint8_t)(row_buf[k+3] & 0x00FF);
+
+        Serial.printf("%02X%02X%02X ", b1, b2, b3);
+
+        // uint16_t r1 = 0x1180;
+        // uint16_t r2 = 0x1107;
+        // uint16_t r3 = 0x11FF;
+        // uint8_t b1 = (uint8_t)(r1 & 0x00FF);
+        // uint8_t b2 = (uint8_t)(r2 & 0x00FF);
+        // uint8_t b3 = (uint8_t)(r3 & 0x00FF);
+
+        uint16_t combinedInt1 = ((uint16_t)b1 << 4) | (b2 >> 4);
+        uint16_t combinedInt2 = (b3 << 4) | (b2 & 0x0F);
+        // frame[((7-i)*8)+(j*2  )] = (int16_t)(combinedInt1 << 4) >> 4;
+        // frame[((7-i)*8)+(j*2+1)] = (int16_t)(combinedInt2 << 4) >> 4;
+        frame[((7-i)*8)+(j*2  )] = combinedInt1;
+        frame[((7-i)*8)+(j*2+1)] = combinedInt2;
+
+        // frame[((7-i)*8)+(j*2  )] = (int16_t)(int8_t)b1;
+        // frame[((7-i)*8)+(j*2+1)] = (int16_t)(int8_t)b3;
       }
+      Serial.println();
     }
     unsigned long stop = micros();
     Serial.printf("micros elapsed: %ld\n", stop-start);
     Serial.printf("micros delay: %ld\n", delay);
     Serial.println();
+    printFrame(frame);
+    Serial.println();
     printFrameScaled(frame);
     Serial.println();
+
+    Serial.println();
+    // uint16_t r1 = 0x11FF;
+    // uint16_t r2 = 0x11F0;
+    // uint16_t r3 = 0x1100;
+    uint16_t r1 = 0x1180;
+    uint16_t r2 = 0x1107;
+    uint16_t r3 = 0x11FF;
+    uint8_t b1 = (uint8_t)(r1 & 0x00FF);
+    uint8_t b2 = (uint8_t)(r2 & 0x00FF);
+    uint8_t b3 = (uint8_t)(r3 & 0x00FF);
+    uint16_t combinedInt1 = ((uint16_t)b1 << 4) | (b2 >> 4);
+    uint16_t combinedInt2 = ((b2 & 0x0F) << 8) | b3;
+    int16_t f1 = (int16_t)(combinedInt1 << 4) >> 4;
+    int16_t f2 = (int16_t)(combinedInt2 << 4) >> 4;
+    Serial.printf("0xFFF > 0x%04X\n", (uint16_t)f1);
+    Serial.printf("0x000 > 0x%04X\n", (uint16_t)f2);
   } else if (command == "dr") {
     int dataRdy = digitalRead(DATA_RDY);
     Serial.printf("dataRdy: %d\n", dataRdy);
