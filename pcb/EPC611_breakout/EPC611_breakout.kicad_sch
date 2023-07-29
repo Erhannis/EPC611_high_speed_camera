@@ -1328,7 +1328,7 @@
     (uuid ffeff60c-a7fd-47c3-845d-0cc7e5879525)
   )
 
-  (text_box "Notes:\n* PIN14, in the datasheet, is conncted to ground differently than the pins next to it.  This is suspicious.\n* I'm not sure if C9 *needs* to be on separate thinner line from C8 - I'll approximate it, anyway.\n* D1 doesn't need the extra diode - it's just that they usually come in packages of two, and have three pins either way, so for clarity of the footprints..."
+  (text_box "Notes:\n* PIN14, in the datasheet, is conncted to ground differently than the pins next to it.  This is suspicious.\n* I'm not sure if C9 *needs* to be on separate thinner line from C8 - I'll approximate it, anyway.\n* D1 doesn't need the extra diode - it's just that they usually come in packages of two, and have three pins either way, so for clarity of the footprints...\n* The datasheet says in one place VDDBS should be -10V, and in another it says -11V.  :|"
     (at 17.145 121.92 0) (size 86.995 68.58)
     (stroke (width 0) (type default))
     (fill (type none))
