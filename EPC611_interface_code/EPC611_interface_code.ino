@@ -70,7 +70,7 @@ const uint16_t BS_SET_INTEGRATION_TIME[] = {
   // Set int. time 1.6384ms
   0x4000, // Integration time multiplier, high byte
   0x4101, // Integration time multiplier, low byte (lowest number = 1)
-  0x42FF, // Integration length, high byte
+  0x4204, // Integration length, high byte //RAINY Permit control
   0x43FF, // Integration length, low byte
   0x0000  // NOP //DITTO  
 };
@@ -90,13 +90,35 @@ const uint16_t BS_READ_WAFER_ID[] = {
   0x0000
 };
 
-/*
-1M makes it
-8M makes it
-10M kiiinda makes it back
-16M makes it there, but the return is garbled
-*/
-static const int spiClk = 1000000;
+const uint16_t BS_READ_2ROW[] = {
+  0x2C00,
+  0x2C00,
+  0x2C00,
+  0x2C00,
+  0x2C00,
+  0x2C00,
+  0x2C00,
+  0x2C00,
+  0x2C00,
+  0x2C00,
+  0x2C00,
+  0x2C00,
+  0x2C00,
+  0x2C00,
+  0x2C00,
+  0x2C00,
+  0x2C00,
+  0x2C00,
+  0x2C00,
+  0x2C00,
+  0x2C00,
+  0x2C00,
+  0x2C00,
+  0x2C00,
+  0x0000
+};
+
+static const int spiClk = 16000000;
 
 //uninitalised pointers to SPI objects
 SPIClass * hspi = NULL;
@@ -114,9 +136,9 @@ void setup() {
   Serial.print("SS   ");
   Serial.println(HSPI_SS);
 
-  Serial.println("Delaying 5 seconds");
-  delay(5000);
-  Serial.println("Done delaying");
+  // Serial.println("Delaying 5 seconds");
+  // delay(5000);
+  // Serial.println("Done delaying");
 
   //initialise instance of the SPIClass attached to HSPI
   hspi = new SPIClass(HSPI);
@@ -139,12 +161,128 @@ void setup() {
   wait_ready();
 }
 
+String incomingCommand = "";
+void readSerialCommand() {
+  if (Serial.available() > 0) {
+    char incomingChar = Serial.read();
+    if (incomingChar == '\r') {
+      // Nothing, ignore
+    } else if (incomingChar == '\n') {
+      processCommand(incomingCommand);
+      incomingCommand = "";
+    } else {
+      incomingCommand += incomingChar;
+    }
+  }
+}
+
+//chatgpt
+long int parseHexString(String hexString) {
+  //THINK What about .c_str?
+  char charBuffer[hexString.length() + 1]; // Create a char array to hold the C-style string
+  hexString.toCharArray(charBuffer, sizeof(charBuffer)); // Convert the String to a char array
+  char *endPtr; // Pointer to the first invalid character after the parsed number
+  long int result = strtol(charBuffer, &endPtr, 16); // Convert the char array to a long int
+  return result;
+}
+
+int16_t convertSigned12to16(int16_t x) {
+  bool isNegative = (x & 0x800) != 0;
+  int16_t signExtendedValue = isNegative ? (x | 0xF000) : (x & 0xFFF);
+  return signExtendedValue;
+}
+
+inline int16_t s12_s16(int16_t x) {
+  return ((x & 0x800) * 0b11110) | x; //THINK Is the multiplication slower than the conditional?
+  //CHECK Also, is this right?
+}
+
+void processCommand(String command) {
+  // Compare the received command with predefined commands
+  if (command == "h" || command == "help") {
+    Serial.println("h/help, id, t####, init, dr, c/s/shutter"); //PERIODIC Keep up to date
+  } else if (command == "id") {
+    read_wafer_id();
+  } else if (command.length() == 5 && command[0] == 't') {
+    uint16_t c = parseHexString(command.substring(1, 5));
+    print_exchange(c);
+  } else if (command == "init") {
+    //DUMMY Probably do this automatically
+    //DUMMY Load sequencer
+    print_exchange_buffer(BS_SETTNGS_1, 0, sizeof(BS_SETTNGS_1) / sizeof(BS_SETTNGS_1[0]));
+    // skip settings 2, at least for my chips //DUMMY will we ever need to deal with wafer < 13?
+    print_exchange_buffer(BS_SET_MODE_GIM, 0, sizeof(BS_SET_MODE_GIM) / sizeof(BS_SET_MODE_GIM[0]));
+    print_exchange_buffer(BS_SET_MODULATION_FREQUENCY, 0, sizeof(BS_SET_MODULATION_FREQUENCY) / sizeof(BS_SET_MODULATION_FREQUENCY[0]));
+    print_exchange_buffer(BS_SET_INTEGRATION_TIME, 0, sizeof(BS_SET_INTEGRATION_TIME) / sizeof(BS_SET_INTEGRATION_TIME[0]));
+  } else if (command == "c" || command == "s" || command == "shutter") {
+    print_exchange(0x8200);
+    print_exchange(0x5801); // Set trigger
+    
+    int8_t frame[8*8]; //DUMMY int16
+    uint16_t row_buf[24+1];
+    uint8_t row2[24];
+
+    // Read frame
+    Serial.println("frame:");
+    unsigned long delay = 0;
+    unsigned long ds = 0;
+    unsigned long start = micros();
+    for (int i = 3; i >= 0; i--) {
+      // Wait for data ready
+      // hspi->beginTransaction(SPISettings(spiClk, MSBFIRST, SPI_MODE));
+      // while (true) {
+      //   digitalWrite(HSPI_SS, LOW);
+      //   uint16_t rx = hspi->transfer16(0x3500);
+      //   digitalWrite(HSPI_SS, HIGH);
+      //   if (rx == 0x3598) {
+      //     Serial.printf("...tx/rx %04X/%04X ready\n", 0x3500, rx);
+      //   }
+      // }
+      // hspi->endTransaction();
+      ds = micros();
+      while (!digitalRead(DATA_RDY));
+      delay += micros()-ds;
+
+      exchange_buffer(BS_READ_2ROW, 0, sizeof(BS_READ_2ROW) / sizeof(BS_READ_2ROW[0]), row_buf, 0);
+      //DUMMY I'm dropping the least significant 4 bits
+      for (int j = 0; j < 4; j++) {
+        int k = j*3;
+        frame[((  i)*8)+(j*2  )] = (int8_t)(row_buf[k+1] & 0x00FF); //DUMMY int16
+        frame[((  i)*8)+(j*2+1)] = (int8_t)(row_buf[k+3] & 0x00FF);
+      }
+      for (int j = 0; j < 4; j++) {
+        int k = (j+4)*3;
+        frame[((7-i)*8)+(j*2  )] = (int8_t)(row_buf[k+1] & 0x00FF);
+        frame[((7-i)*8)+(j*2+1)] = (int8_t)(row_buf[k+3] & 0x00FF);
+      }
+    }
+    unsigned long stop = micros();
+    Serial.printf("micros elapsed: %ld\n", stop-start);
+    Serial.printf("micros delay: %ld\n", delay);
+    Serial.println();
+    for (int y = 0; y < 8; y++) {
+      for (int x = 0; x < 8; x++) {
+        Serial.printf("%02X ", (uint8_t)frame[(y*8)+x]);
+      }
+      Serial.println();
+    }
+    Serial.println();
+  } else if (command == "dr") {
+    int dataRdy = digitalRead(DATA_RDY);
+    Serial.printf("dataRdy: %d\n", dataRdy);
+  } else {
+    Serial.println("Invalid command"); // Command not recognized
+  }
+}
+
+
 // the loop function runs over and over again until power down or reset
 void loop() {
-  read_wafer_id();
-  int dataRdy = digitalRead(DATA_RDY);
-  Serial.printf("dataRdy: %d\n", dataRdy);
-  delay(1000);
+  //read_wafer_id();
+  readSerialCommand();
+  // int dataRdy = digitalRead(DATA_RDY);
+  // Serial.printf("dataRdy: %d\n", dataRdy);
+  // delay(1000);
 }
 
 byte count = 0;
@@ -155,7 +293,7 @@ int print_exchange(int tx) {
   uint16_t rx = hspi->transfer16(tx);
   digitalWrite(HSPI_SS, HIGH);
   hspi->endTransaction();
-  Serial.printf("tx/rx %4X/%4X\n", tx, rx);
+  Serial.printf("tx/rx %04X/%04X\n", tx, rx);
   return rx;
 }
 
@@ -169,29 +307,39 @@ void print_exchange_buffer(const uint16_t tx[], int offset, int count) {
   }
   hspi->endTransaction();
   for (int i = 0; i < count; i++) {
-    Serial.printf("tx/rx %4X/%4X\n", tx[offset+i], exchangeBuffer[i]);
+    Serial.printf("tx/rx %04X/%04X\n", tx[offset+i], exchangeBuffer[i]);
   }
+  Serial.println();
+}
+void exchange_buffer(const uint16_t tx[], int tx_offset, int count, uint16_t rx[], int rx_offset) {
+  hspi->beginTransaction(SPISettings(spiClk, MSBFIRST, SPI_MODE));
+  for (int i = 0; i < count; i++) {
+    digitalWrite(HSPI_SS, LOW);
+    rx[rx_offset+i] = hspi->transfer16(tx[tx_offset+i]);
+    digitalWrite(HSPI_SS, HIGH); // Apparently I have to toggle nss between words
+  }
+  hspi->endTransaction();
 }
 
 void wait_ready() {
   //DUMMY Actually look at response
   Serial.println("delaying for ready....");
   for (int i = 0; i < 30; i++) {
-    print_exchange(0x0000);
+    uint16_t rx = print_exchange(0x0000);
+    if (rx == 0x0000) {
+      Serial.println("Ready!");  
+      Serial.println();
+      return;
+    }
     delay(100);
   }
+  Serial.println("Not ready... :(");  
   Serial.println();
 }
 
 void read_wafer_id() {
   Serial.println("Reading wafer id...");
-  // print_exchange(0x8700);
-  // print_exchange(0x3600);
-  // print_exchange(0x3700);
-  // print_exchange(0x3800);
-  // print_exchange(0x3900);
-  // print_exchange(0x0000);
-  print_exchange_buffer_slow(BS_READ_WAFER_ID, 0, sizeof(BS_READ_WAFER_ID) / sizeof(BS_READ_WAFER_ID[0]));
+  print_exchange_buffer(BS_READ_WAFER_ID, 0, sizeof(BS_READ_WAFER_ID) / sizeof(BS_READ_WAFER_ID[0]));
   Serial.println();
 }
 
@@ -205,7 +353,7 @@ void hspi_send_command() {
   digitalWrite(HSPI_SS, HIGH);
   hspi->endTransaction();
 
-  Serial.printf("tx/rx %4X/%4X", tx, rx);
+  Serial.printf("tx/rx %04X/%04X", tx, rx);
   Serial.println();
 }
 
