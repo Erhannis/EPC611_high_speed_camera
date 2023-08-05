@@ -1,0 +1,1 @@
+Dang, the FTDI is missing chunks of data every ~183 unique bytes - around 549 (512?) live bytes.  Maybe buffer runs out?  Eh, that's 1K

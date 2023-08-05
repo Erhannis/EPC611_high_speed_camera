@@ -7,10 +7,10 @@ extern crate ftdi;
 use std::{io::{Read, Write}, time::Instant, convert::TryInto, convert::TryFrom};
 use std::cmp::min;
 
-const RX_BUF_SIZE: usize = 0x10000*3;//*0x200 //CHECK Try large values, now?
-const MAX_PRINT_SIZE: usize = 0x10;
-// const MAX_PRINT_SIZE: usize = 0x1000000;
-const ITER: i32 = 0x10;
+const RX_BUF_SIZE: usize = 0x100000;//*0x200 //CHECK Try large values, now?
+// const MAX_PRINT_SIZE: usize = 0x100;
+const MAX_PRINT_SIZE: usize = 0x10000000;
+const ITER: i32 = 0x01;
 
 fn main() {
     println!("Starting tester...");
@@ -22,9 +22,10 @@ fn main() {
         println!("Device found and opened");
         device.usb_reset().unwrap();
         device.usb_purge_buffers().unwrap();
-        device.set_latency_timer(2).unwrap();
+        device.set_latency_timer(16).unwrap();
 
         // Missing: set_usb_parameters
+        device.set_read_chunksize(0x10000);
         device.usb_set_event_char(None).unwrap();
         device.usb_set_error_char(None).unwrap();
         // Missing: set_timeouts
@@ -33,97 +34,174 @@ fn main() {
         device.set_bitmode(0x00, ftdi::BitMode::Reset).unwrap();
         device.set_bitmode(0x00, ftdi::BitMode::Syncff).unwrap(); // Synchronous FIFO
 
-        let mut rx_buf: Vec<u8> = vec![0; RX_BUF_SIZE];
-        let mut display_buf: Vec<i16> = vec![0; RX_BUF_SIZE];
+        let mut buf0: Vec<u8> = vec![0; RX_BUF_SIZE];
+        let mut buf1: Vec<u8> = vec![0; RX_BUF_SIZE];
 
         let now0 = Instant::now();
         let mut total: u128 = 0;
         for _ in 0..ITER {
             // print!(". ");
             let now = Instant::now();
-            device.read_exact(&mut rx_buf).unwrap();
+            device.read_exact(&mut buf0).unwrap(); //DUMMY Handle partial reads
             let t: u128 = now.elapsed().as_micros();
             let z: u128 = (RX_BUF_SIZE * 1000000).try_into().unwrap();
             total += u128::try_from(RX_BUF_SIZE).unwrap();
     
-            println!("{RX_BUF_SIZE} @ {} = {} B/s", t, z/t);
-
-            let n = min(rx_buf.len(), MAX_PRINT_SIZE);
-
-            for i in 0..rx_buf.len() {
-                if rx_buf[i] & 0b10000000 != 0 {
-                    display_buf[i] = -((rx_buf[i] & 0b01111111) as i16);
-                } else {
-                    display_buf[i] =   (rx_buf[i] & 0b01111111) as i16;
+            let mut last: u8 = 0b00000000; //DUMMY May skip first byte, or erroneously admit it
+            let mut j = 0;
+            for i in 0..buf0.len() {
+                if last != (buf0[i] & 0b10000000) {
+                    buf1[j] = buf0[i] & 0b01111111;
+                    j += 1;
                 }
-
-                // display_buf[i] = rx_buf[i] as i16;
-
-                // display_buf[i] =   (rx_buf[i] & 0b01111111) as i16;
-
-                // display_buf[i] = rx_buf[i] as i8 as i16;
+                last = buf0[i] & 0b10000000;
             }
 
-            print!("rx: ");
+            if false { // 019,019,148,148,021,021
+                let n0 = min(buf0.len(), MAX_PRINT_SIZE);
+                print!("rx0: ");
+                if n0 < buf0.len() {
+                    for i in 0..n0 {
+                        print!("{:#03},", buf0[i]);
+                    }
+                    print!("...");
+                    for i in (buf0.len()-n0)..buf0.len() {
+                        print!("{:#03},", buf0[i]);
+                    }
+                } else {
+                    for i in 0..n0 {
+                        print!("{:#03},", buf0[i]);
+                    }
+                }
+                println!();                
+            }
+
+            if true { // 015, 015,-016,-016, 017, 017
+                let n0 = min(buf0.len(), MAX_PRINT_SIZE);
+                last = 0;
+                print!("rx0: ");
+                if n0 < buf0.len() {
+                    for i in 0..n0 {
+                        let mut x = buf0[i];
+                        if x & 0b10000000 != 0 {
+                            print!("-{:#03},", x&0b01111111);
+                        } else {
+                            print!(" {:#03},", x&0b01111111);
+                        }
+                    }
+                    print!("...");
+                    for i in (buf0.len()-n0)..buf0.len() {
+                        let mut x = buf0[i];
+                        if x & 0b10000000 != 0 {
+                            print!("-{:#03},", x&0b01111111);
+                        } else {
+                            print!(" {:#03},", x&0b01111111);
+                        }
+                    }
+                } else {
+                    for i in 0..n0 {
+                        let s = buf0[i]&0b10000000;
+                        let x = buf0[i]&0b01111111;
+                        let c: char = if s != 0 { '-' } else { ' ' };
+                        if x == ((last+1) % 128) || x == last {
+                            print!("{}{:#03},", c, x&0b01111111);
+                        } else {
+                            print!("\x1b[31m{}{:#03}\x1b[0m,", c, x&0b01111111);
+                        }
+                        last = x;
+                    }
+                }
+                println!();                
+            }
+            
+            if false { // 069,070,071,072
+                // let n = min(buf0.len(), MAX_PRINT_SIZE);
+                let n1 = min(j, MAX_PRINT_SIZE);
+                print!("rx1: ");
+                last = 0;
+                if n1 < j {
+                    for i in 0..n1 {
+                        if buf1[i] == ((last+1) % 128) {
+                            print!("{:#03},", buf1[i]);
+                        } else {
+                            print!("\x1b[31m{:#03}\x1b[0m,", buf1[i]);
+                        }
+                        last = buf1[i];
+                    }
+                    print!("...");
+                    for i in (j-n1)..j {
+                        if buf1[i] == ((last+1) % 128) {
+                            print!("{:#03},", buf1[i]);
+                        } else {
+                            print!("\x1b[31m{:#03}\x1b[0m,", buf1[i]);
+                        }
+                        last = buf1[i];
+                    }
+                } else {
+                    let mut skips: u32 = 0;
+                    let mut skiplens: u64 = 0;
+                    let mut skipTotal: u64 = 0;
+                    let mut curSkip: u64 = 0;
+                    for i in 0..n1 {
+                        if buf1[i] == ((last+1) % 128) {
+                            print!("{:#03},", buf1[i]);
+                            curSkip += 1;
+                        } else {
+                            print!("\x1b[31m{:#03}\x1b[0m,", buf1[i]);
+                            skips += 1;
+                            skiplens += curSkip;
+                            if (buf1[i] < last) {
+                                skipTotal += (buf1[i] as u64) + 128 - (last as u64);
+                            } else {
+                                skipTotal += (buf1[i] - last) as u64;
+                            }
+                            curSkip = 0;
+                        }
+                        last = buf1[i];
+                    }
+                    println!();
+                    println!();
+                    println!("skips {skips} missed avg {:.2} entries, bookending {:.2} entries", (skipTotal as f64) / (skips as f64), (skiplens as f64) / (skips as f64));
+                }
+            }
+
+            // if n < rx_buf.len() {
+            //     for i in 0..n {
+            //         print!("{:#010b},\n", rx_buf[i]);
+            //     }
+            //     print!("...");
+            //     for i in (rx_buf.len()-n)..rx_buf.len() {
+            //         print!("{:#010b},\n", rx_buf[i]);
+            //     }
+            // } else {
+            //     for i in 0..n {
+            //         print!("{:#010b},\n", rx_buf[i]);
+            //     }
+            // }
 
             // if n < display_buf.len() {
             //     for i in 0..n {
-            //         print!("{:#03},", display_buf[i]);
+            //         print!("{:#018b}, {:#03},\n", rx_buf[i], rx_buf[i]);
+            //         print!("{:#018b}, {:#03},\n\n", display_buf[i], display_buf[i]);
             //     }
             //     print!("...");
-            //     for i in (rx_buf.len()-n)..display_buf.len() {
-            //         print!("{:#03},", display_buf[i]);
+            //     for i in (display_buf.len()-n)..display_buf.len() {
+            //         print!("{:#018b}, {:#03},\n", rx_buf[i], rx_buf[i]);
+            //         print!("{:#018b}, {:#03},\n\n", display_buf[i], display_buf[i]);
             //     }
             // } else {
             //     for i in 0..n {
-            //         print!("{:#03},", display_buf[i]);
+            //         print!("{:#018b}, {:#03},\n", rx_buf[i], rx_buf[i]);
+            //         print!("{:#018b}, {:#03},\n\n", display_buf[i], display_buf[i]);
             //     }
             // }
 
-            // if n < rx_buf.len() {
-            //     for i in 0..n {
-            //         print!("{:#03},", rx_buf[i]);
-            //     }
-            //     print!("...");
-            //     for i in (rx_buf.len()-n)..rx_buf.len() {
-            //         print!("{:#03},", rx_buf[i]);
-            //     }
-            // } else {
-            //     for i in 0..n {
-            //         print!("{:#03},", rx_buf[i]);
-            //     }
-            // }
+            println!();
+            println!();
 
-            // if n < rx_buf.len() {
-            //     for i in 0..n {
-            //         print!("{:#010b},\n", rx_buf[i]);
-            //     }
-            //     print!("...");
-            //     for i in (rx_buf.len()-n)..rx_buf.len() {
-            //         print!("{:#010b},\n", rx_buf[i]);
-            //     }
-            // } else {
-            //     for i in 0..n {
-            //         print!("{:#010b},\n", rx_buf[i]);
-            //     }
-            // }
-
-            if n < display_buf.len() {
-                for i in 0..n {
-                    print!("{:#018b}, {:#03},\n", rx_buf[i], rx_buf[i]);
-                    print!("{:#018b}, {:#03},\n\n", display_buf[i], display_buf[i]);
-                }
-                print!("...");
-                for i in (display_buf.len()-n)..display_buf.len() {
-                    print!("{:#018b}, {:#03},\n", rx_buf[i], rx_buf[i]);
-                    print!("{:#018b}, {:#03},\n\n", display_buf[i], display_buf[i]);
-                }
-            } else {
-                for i in 0..n {
-                    print!("{:#018b}, {:#03},\n", rx_buf[i], rx_buf[i]);
-                    print!("{:#018b}, {:#03},\n\n", display_buf[i], display_buf[i]);
-                }
-            }
+            println!("{RX_BUF_SIZE} @ {} = {} B/s", t, z/t);
+            println!();
+            println!("{RX_BUF_SIZE} : {j} = {:.2}", (j as f64) / (RX_BUF_SIZE as f64));
 
             println!();
             println!();
