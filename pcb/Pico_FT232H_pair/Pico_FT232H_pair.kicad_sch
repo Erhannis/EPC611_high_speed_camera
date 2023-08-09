@@ -3956,7 +3956,7 @@
       )
       (project "Pico_FT232H_pair"
         (path "/cb1328be-544a-4c60-8dcb-9d63db56fc1e"
-          (reference "C7(P1)") (unit 1)
+          (reference "C7(P1)1") (unit 1)
         )
       )
     )
@@ -4256,7 +4256,7 @@
       )
       (project "Pico_FT232H_pair"
         (path "/cb1328be-544a-4c60-8dcb-9d63db56fc1e"
-          (reference "C10(P49)") (unit 1)
+          (reference "C10(P49)1") (unit 1)
         )
       )
     )
@@ -4548,7 +4548,7 @@
       )
       (project "Pico_FT232H_pair"
         (path "/cb1328be-544a-4c60-8dcb-9d63db56fc1e"
-          (reference "C11(P43,44)") (unit 1)
+          (reference "C11(P43,44)1") (unit 1)
         )
       )
     )
@@ -4952,7 +4952,7 @@
       )
       (project "Pico_FT232H_pair"
         (path "/cb1328be-544a-4c60-8dcb-9d63db56fc1e"
-          (reference "C15(P50)") (unit 1)
+          (reference "C15(P50)1") (unit 1)
         )
       )
     )
@@ -4989,7 +4989,7 @@
       )
       (project "Pico_FT232H_pair"
         (path "/cb1328be-544a-4c60-8dcb-9d63db56fc1e"
-          (reference "C8(P22)") (unit 1)
+          (reference "C8(P22)1") (unit 1)
         )
       )
     )
@@ -5146,7 +5146,7 @@
       )
       (project "Pico_FT232H_pair"
         (path "/cb1328be-544a-4c60-8dcb-9d63db56fc1e"
-          (reference "C13(P23)") (unit 1)
+          (reference "C13(P23)1") (unit 1)
         )
       )
     )
@@ -5650,7 +5650,7 @@
   (symbol (lib_id "Connector:USB_B_Micro") (at 208.915 29.21 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 95247026-e58a-4e6a-9c0e-4c748afd58a7)
-    (property "Reference" "FTDI_USB" (at 208.915 16.51 0)
+    (property "Reference" "FTDI_USB1" (at 208.915 16.51 0)
       (effects (font (size 1.27 1.27)))
     )
     (property "Value" "USB_B_Micro" (at 208.915 19.05 0)
@@ -5680,7 +5680,7 @@
     (instances
       (project "Pico_FT232H_pair"
         (path "/cb1328be-544a-4c60-8dcb-9d63db56fc1e"
-          (reference "FTDI_USB") (unit 1)
+          (reference "FTDI_USB1") (unit 1)
         )
       )
       (project "kicad_deps"
@@ -6059,7 +6059,7 @@
       )
       (project "Pico_FT232H_pair"
         (path "/cb1328be-544a-4c60-8dcb-9d63db56fc1e"
-          (reference "C6(P10)") (unit 1)
+          (reference "C6(P10)1") (unit 1)
         )
       )
     )
@@ -6548,7 +6548,7 @@
       )
       (project "Pico_FT232H_pair"
         (path "/cb1328be-544a-4c60-8dcb-9d63db56fc1e"
-          (reference "C12(P33)") (unit 1)
+          (reference "C12(P33)1") (unit 1)
         )
       )
     )
@@ -6947,7 +6947,7 @@
       )
       (project "Pico_FT232H_pair"
         (path "/cb1328be-544a-4c60-8dcb-9d63db56fc1e"
-          (reference "C9(P42)") (unit 1)
+          (reference "C9(P42)1") (unit 1)
         )
       )
     )
@@ -6956,7 +6956,7 @@
   (symbol (lib_id "Connector:USB_B_Micro") (at 20.955 58.42 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid e5989ee8-65c1-45a2-9deb-05c5a1b144ef)
-    (property "Reference" "RP_USB" (at 20.955 45.72 0)
+    (property "Reference" "RP_USB1" (at 20.955 45.72 0)
       (effects (font (size 1.27 1.27)))
     )
     (property "Value" "USB_B_Micro" (at 20.955 48.26 0)
@@ -6986,7 +6986,7 @@
     (instances
       (project "Pico_FT232H_pair"
         (path "/cb1328be-544a-4c60-8dcb-9d63db56fc1e"
-          (reference "RP_USB") (unit 1)
+          (reference "RP_USB1") (unit 1)
         )
       )
       (project "kicad_deps"
@@ -7261,7 +7261,7 @@
       )
       (project "Pico_FT232H_pair"
         (path "/cb1328be-544a-4c60-8dcb-9d63db56fc1e"
-          (reference "C14(P45)") (unit 1)
+          (reference "C14(P45)1") (unit 1)
         )
       )
     )
