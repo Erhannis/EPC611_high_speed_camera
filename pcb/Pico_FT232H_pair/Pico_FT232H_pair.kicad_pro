@@ -490,6 +490,10 @@
     [
       "26de3c5c-091f-4908-97ae-0feaa128216f",
       "USB Micro B"
+    ],
+    [
+      "94a86c12-05b9-4da1-af0c-af11b6995a59",
+      "EEPROM"
     ]
   ],
   "text_variables": {}
