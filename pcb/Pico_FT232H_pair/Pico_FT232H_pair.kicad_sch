@@ -1478,45 +1478,6 @@
         )
       )
     )
-    (symbol "RP2040Breakout-eagle-import:1.2V" (power) (in_bom yes) (on_board yes)
-      (property "Reference" "" (at 0 0 0)
-        (effects (font (size 1.27 1.27)) hide)
-      )
-      (property "Value" "1.2V" (at -1.524 1.016 0)
-        (effects (font (size 1.27 1.0795)) (justify left bottom))
-      )
-      (property "Footprint" "" (at 0 0 0)
-        (effects (font (size 1.27 1.27)) hide)
-      )
-      (property "Datasheet" "" (at 0 0 0)
-        (effects (font (size 1.27 1.27)) hide)
-      )
-      (property "ki_locked" "" (at 0 0 0)
-        (effects (font (size 1.27 1.27)))
-      )
-      (symbol "1.2V_1_0"
-        (polyline
-          (pts
-            (xy -1.27 -1.27)
-            (xy 0 0)
-          )
-          (stroke (width 0.254) (type solid))
-          (fill (type none))
-        )
-        (polyline
-          (pts
-            (xy 0 0)
-            (xy 1.27 -1.27)
-          )
-          (stroke (width 0.254) (type solid))
-          (fill (type none))
-        )
-        (pin power_in line (at 0 -2.54 90) (length 2.54)
-          (name "1.2V" (effects (font (size 0 0))))
-          (number "1" (effects (font (size 0 0))))
-        )
-      )
-    )
     (symbol "RP2040Breakout-eagle-import:CAP_CERAMIC_0402NO" (in_bom yes) (on_board yes)
       (property "Reference" "C" (at -2.29 1.25 90)
         (effects (font (size 1.27 1.27)))
@@ -3619,36 +3580,6 @@
     (uuid fe1fdaf4-fc8d-48a9-8993-3fcd28a5e1a2)
   )
 
-  (symbol (lib_id "RP2040Breakout-eagle-import:1.2V") (at 139.7 170.815 0) (unit 1)
-    (in_bom yes) (on_board yes) (dnp no)
-    (uuid 08d244b0-8fdf-4675-8c40-630c3eca2490)
-    (property "Reference" "#U$16" (at 139.7 170.815 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (property "Value" "1.2V" (at 138.176 169.799 0)
-      (effects (font (size 1.27 1.0795)) (justify left bottom))
-    )
-    (property "Footprint" "" (at 139.7 170.815 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (property "Datasheet" "" (at 139.7 170.815 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (pin "1" (uuid 7371b8ba-9519-4525-9c60-d91bb7f5a9aa))
-    (instances
-      (project "RP2040Breakout"
-        (path "/c784a5d7-6d3a-4c20-8207-f0b3ca3fe9b6"
-          (reference "#U$16") (unit 1)
-        )
-      )
-      (project "Pico_FT232H_pair"
-        (path "/cb1328be-544a-4c60-8dcb-9d63db56fc1e"
-          (reference "#U$013") (unit 1)
-        )
-      )
-    )
-  )
-
   (symbol (lib_id "power:GND") (at 121.92 132.08 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 09d88e60-d1c6-495a-b1da-85ba629101ea)
@@ -3707,7 +3638,7 @@
   (symbol (lib_id "icebreaker-rescue:pkl_C-pkl_device") (at 189.865 139.7 0) (mirror x) (unit 1)
     (in_bom yes) (on_board yes) (dnp no)
     (uuid 0d097fee-1310-46b8-bfb9-8a3f46044d24)
-    (property "Reference" "C17" (at 189.865 142.24 0)
+    (property "Reference" "C17(P46)" (at 189.865 142.24 0)
       (effects (font (size 1.27 1.27)) (justify left))
     )
     (property "Value" "4u7" (at 190.5 137.16 0)
@@ -3736,12 +3667,37 @@
     (instances
       (project "Pico_FT232H_pair"
         (path "/cb1328be-544a-4c60-8dcb-9d63db56fc1e"
-          (reference "C17") (unit 1)
+          (reference "C17(P46)") (unit 1)
         )
       )
       (project "jtag-programmer"
         (path "/e06305fb-998f-48af-a66f-06af1aebcaf0"
           (reference "C9") (unit 1)
+        )
+      )
+    )
+  )
+
+  (symbol (lib_id "power:+1V2") (at 132.08 173.355 0) (unit 1)
+    (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
+    (uuid 0e6765c3-60d0-46c2-910d-54e2d72f8f57)
+    (property "Reference" "#PWR042" (at 132.08 177.165 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Value" "+1V2" (at 132.08 168.91 0)
+      (effects (font (size 1.27 1.27)))
+    )
+    (property "Footprint" "" (at 132.08 173.355 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Datasheet" "" (at 132.08 173.355 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (pin "1" (uuid 5a0c9332-3086-4f45-a512-c51eb8557776))
+    (instances
+      (project "Pico_FT232H_pair"
+        (path "/cb1328be-544a-4c60-8dcb-9d63db56fc1e"
+          (reference "#PWR042") (unit 1)
         )
       )
     )
@@ -4073,7 +4029,7 @@
   (symbol (lib_id "icebreaker-rescue:pkl_C-pkl_device") (at 192.405 151.13 0) (mirror x) (unit 1)
     (in_bom yes) (on_board yes) (dnp no)
     (uuid 2bba17da-6a44-408f-8cf0-99b5af416d9e)
-    (property "Reference" "C19" (at 192.405 153.67 0)
+    (property "Reference" "C19(P24)" (at 192.405 153.67 0)
       (effects (font (size 1.27 1.27)) (justify left))
     )
     (property "Value" "4u7" (at 193.04 148.59 0)
@@ -4102,7 +4058,7 @@
     (instances
       (project "Pico_FT232H_pair"
         (path "/cb1328be-544a-4c60-8dcb-9d63db56fc1e"
-          (reference "C19") (unit 1)
+          (reference "C19(P24)") (unit 1)
         )
       )
       (project "jtag-programmer"
@@ -4784,40 +4740,10 @@
     )
   )
 
-  (symbol (lib_id "RP2040Breakout-eagle-import:1.2V") (at 124.46 170.815 0) (unit 1)
-    (in_bom yes) (on_board yes) (dnp no)
-    (uuid 630fb9e1-9063-4d55-9c5b-be37e5b7858e)
-    (property "Reference" "#U$21" (at 124.46 170.815 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (property "Value" "1.2V" (at 122.936 169.799 0)
-      (effects (font (size 1.27 1.0795)) (justify left bottom))
-    )
-    (property "Footprint" "" (at 124.46 170.815 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (property "Datasheet" "" (at 124.46 170.815 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (pin "1" (uuid be34a098-0ce3-4f5f-bce7-800275b460d9))
-    (instances
-      (project "RP2040Breakout"
-        (path "/c784a5d7-6d3a-4c20-8207-f0b3ca3fe9b6"
-          (reference "#U$21") (unit 1)
-        )
-      )
-      (project "Pico_FT232H_pair"
-        (path "/cb1328be-544a-4c60-8dcb-9d63db56fc1e"
-          (reference "#U$09") (unit 1)
-        )
-      )
-    )
-  )
-
   (symbol (lib_id "icebreaker-rescue:pkl_C_Small-pkl_device") (at 223.52 114.3 90) (mirror x) (unit 1)
     (in_bom yes) (on_board yes) (dnp no)
     (uuid 665be209-c1ec-46ba-a95a-548cfe53c4d1)
-    (property "Reference" "C10" (at 222.25 113.03 90)
+    (property "Reference" "C10(P37)" (at 222.25 113.03 90)
       (effects (font (size 1.27 1.27)) (justify left))
     )
     (property "Value" "100n" (at 229.87 113.03 90)
@@ -4846,7 +4772,7 @@
     (instances
       (project "Pico_FT232H_pair"
         (path "/cb1328be-544a-4c60-8dcb-9d63db56fc1e"
-          (reference "C10") (unit 1)
+          (reference "C10(P37)") (unit 1)
         )
       )
       (project "jtag-programmer"
@@ -4882,6 +4808,31 @@
       (project "Pico_FT232H_pair"
         (path "/cb1328be-544a-4c60-8dcb-9d63db56fc1e"
           (reference "#+3V02") (unit 1)
+        )
+      )
+    )
+  )
+
+  (symbol (lib_id "power:+1V2") (at 139.7 173.355 0) (unit 1)
+    (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
+    (uuid 6e83a8bb-1aed-4df1-aee2-dddfdd57fd05)
+    (property "Reference" "#PWR043" (at 139.7 177.165 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Value" "+1V2" (at 139.7 168.91 0)
+      (effects (font (size 1.27 1.27)))
+    )
+    (property "Footprint" "" (at 139.7 173.355 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Datasheet" "" (at 139.7 173.355 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (pin "1" (uuid 5ddde7c9-ec21-402b-b908-34789670457f))
+    (instances
+      (project "Pico_FT232H_pair"
+        (path "/cb1328be-544a-4c60-8dcb-9d63db56fc1e"
+          (reference "#PWR043") (unit 1)
         )
       )
     )
@@ -5171,7 +5122,7 @@
   (symbol (lib_id "icebreaker-rescue:pkl_C-pkl_device") (at 197.485 151.13 0) (mirror x) (unit 1)
     (in_bom yes) (on_board yes) (dnp no)
     (uuid 7bf2cbae-610c-4ece-85ef-c090b6c00635)
-    (property "Reference" "C13" (at 197.485 153.67 0)
+    (property "Reference" "C13(P8)" (at 197.485 153.67 0)
       (effects (font (size 1.27 1.27)) (justify left))
     )
     (property "Value" "4u7" (at 198.12 148.59 0)
@@ -5200,7 +5151,7 @@
     (instances
       (project "Pico_FT232H_pair"
         (path "/cb1328be-544a-4c60-8dcb-9d63db56fc1e"
-          (reference "C13") (unit 1)
+          (reference "C13(P8)") (unit 1)
         )
       )
       (project "jtag-programmer"
@@ -5488,7 +5439,7 @@
   (symbol (lib_id "icebreaker-rescue:pkl_C-pkl_device") (at 200.025 139.7 0) (mirror x) (unit 1)
     (in_bom yes) (on_board yes) (dnp no)
     (uuid 8e74ad3a-24d2-43ff-95d3-c6059f686142)
-    (property "Reference" "C16" (at 200.025 142.24 0)
+    (property "Reference" "C16(P3)" (at 200.025 142.24 0)
       (effects (font (size 1.27 1.27)) (justify left))
     )
     (property "Value" "4u7" (at 200.66 137.16 0)
@@ -5517,7 +5468,7 @@
     (instances
       (project "Pico_FT232H_pair"
         (path "/cb1328be-544a-4c60-8dcb-9d63db56fc1e"
-          (reference "C16") (unit 1)
+          (reference "C16(P3)") (unit 1)
         )
       )
       (project "jtag-programmer"
@@ -5791,6 +5742,31 @@
     )
   )
 
+  (symbol (lib_id "power:+1V2") (at 124.46 173.355 0) (unit 1)
+    (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
+    (uuid a0c87278-ab19-40ac-b48c-7718355aaf76)
+    (property "Reference" "#PWR041" (at 124.46 177.165 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Value" "+1V2" (at 124.46 168.91 0)
+      (effects (font (size 1.27 1.27)))
+    )
+    (property "Footprint" "" (at 124.46 173.355 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Datasheet" "" (at 124.46 173.355 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (pin "1" (uuid 983c5620-d97e-4bad-8542-b63dfc604363))
+    (instances
+      (project "Pico_FT232H_pair"
+        (path "/cb1328be-544a-4c60-8dcb-9d63db56fc1e"
+          (reference "#PWR041") (unit 1)
+        )
+      )
+    )
+  )
+
   (symbol (lib_id "icebreaker-rescue:pkl_R_Small-pkl_device") (at 207.645 45.085 270) (unit 1)
     (in_bom yes) (on_board yes) (dnp no)
     (uuid a10d8b2a-7781-4ffb-9493-647f7fa77bfa)
@@ -5902,7 +5878,7 @@
   (symbol (lib_id "icebreaker-rescue:pkl_C_Small-pkl_device") (at 233.68 119.38 270) (mirror x) (unit 1)
     (in_bom yes) (on_board yes) (dnp no)
     (uuid ad12bd7d-8857-480f-8ee5-6cfc76886246)
-    (property "Reference" "C11" (at 234.95 120.65 90)
+    (property "Reference" "C11(P39)" (at 234.95 120.65 90)
       (effects (font (size 1.27 1.27)) (justify left))
     )
     (property "Value" "100n" (at 227.33 120.65 90)
@@ -5931,7 +5907,7 @@
     (instances
       (project "Pico_FT232H_pair"
         (path "/cb1328be-544a-4c60-8dcb-9d63db56fc1e"
-          (reference "C11") (unit 1)
+          (reference "C11(P39)") (unit 1)
         )
       )
       (project "jtag-programmer"
@@ -6443,7 +6419,7 @@
   (symbol (lib_id "icebreaker-rescue:pkl_C_Small-pkl_device") (at 226.06 116.84 90) (mirror x) (unit 1)
     (in_bom yes) (on_board yes) (dnp no)
     (uuid b9f67c60-20f9-40e3-b45b-d481e527ad8c)
-    (property "Reference" "C9" (at 224.79 118.11 90)
+    (property "Reference" "C9(P38)" (at 224.79 118.11 90)
       (effects (font (size 1.27 1.27)) (justify left))
     )
     (property "Value" "100n" (at 232.41 118.11 90)
@@ -6472,7 +6448,7 @@
     (instances
       (project "Pico_FT232H_pair"
         (path "/cb1328be-544a-4c60-8dcb-9d63db56fc1e"
-          (reference "C9") (unit 1)
+          (reference "C9(P38)") (unit 1)
         )
       )
       (project "jtag-programmer"
@@ -6600,36 +6576,6 @@
     )
   )
 
-  (symbol (lib_id "RP2040Breakout-eagle-import:1.2V") (at 132.08 170.815 0) (unit 1)
-    (in_bom yes) (on_board yes) (dnp no)
-    (uuid bfd50bed-4f33-4a5f-937b-22f2be78a585)
-    (property "Reference" "#U$15" (at 132.08 170.815 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (property "Value" "1.2V" (at 130.556 169.799 0)
-      (effects (font (size 1.27 1.0795)) (justify left bottom))
-    )
-    (property "Footprint" "" (at 132.08 170.815 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (property "Datasheet" "" (at 132.08 170.815 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (pin "1" (uuid c3eed06b-ca1e-4450-88fb-c6ff3eb1a66c))
-    (instances
-      (project "RP2040Breakout"
-        (path "/c784a5d7-6d3a-4c20-8207-f0b3ca3fe9b6"
-          (reference "#U$15") (unit 1)
-        )
-      )
-      (project "Pico_FT232H_pair"
-        (path "/cb1328be-544a-4c60-8dcb-9d63db56fc1e"
-          (reference "#U$011") (unit 1)
-        )
-      )
-    )
-  )
-
   (symbol (lib_id "power:GND") (at 43.18 88.9 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid c1751d97-730f-4104-b433-ffb10497536e)
@@ -6697,7 +6643,7 @@
   (symbol (lib_id "icebreaker-rescue:pkl_C-pkl_device") (at 194.945 139.7 0) (mirror x) (unit 1)
     (in_bom yes) (on_board yes) (dnp no)
     (uuid d108d6a8-6a67-4af4-8d3c-d15762ca2161)
-    (property "Reference" "C18" (at 194.945 142.24 0)
+    (property "Reference" "C18(P12)" (at 194.945 142.24 0)
       (effects (font (size 1.27 1.27)) (justify left))
     )
     (property "Value" "4u7" (at 195.58 137.16 0)
@@ -6726,7 +6672,7 @@
     (instances
       (project "Pico_FT232H_pair"
         (path "/cb1328be-544a-4c60-8dcb-9d63db56fc1e"
-          (reference "C18") (unit 1)
+          (reference "C18(P12)") (unit 1)
         )
       )
       (project "jtag-programmer"
@@ -7316,7 +7262,7 @@
   (symbol (lib_id "icebreaker-rescue:pkl_C_Small-pkl_device") (at 222.885 124.46 90) (mirror x) (unit 1)
     (in_bom yes) (on_board yes) (dnp no)
     (uuid eff9e736-2a7b-4cea-96ea-0cabe376602c)
-    (property "Reference" "C14" (at 221.615 123.19 90)
+    (property "Reference" "C14(P40)" (at 221.615 123.19 90)
       (effects (font (size 1.27 1.27)) (justify left))
     )
     (property "Value" "100n" (at 229.235 123.19 90)
@@ -7345,7 +7291,7 @@
     (instances
       (project "Pico_FT232H_pair"
         (path "/cb1328be-544a-4c60-8dcb-9d63db56fc1e"
-          (reference "C14") (unit 1)
+          (reference "C14(P40)") (unit 1)
         )
       )
       (project "jtag-programmer"
