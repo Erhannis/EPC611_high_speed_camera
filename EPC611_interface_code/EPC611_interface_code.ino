@@ -30,6 +30,7 @@ So, I coulda sworn the initial readings off the first chip I tried were non-garb
 #define SPI_MODE SPI_MODE0
 #define AUTO_INIT 1
 #define AUTO_SHUTTER 1
+#define BATCH_MODE 1
 
 const uint16_t BS_STARTUP[] = {
   //DUMMY Load sequencer
@@ -160,6 +161,9 @@ void setup() {
   pinMode(HSPI_SS, OUTPUT); //HSPI SS
   pinMode(DATA_RDY, INPUT);
   
+  int16_t frame[8*8];
+  Serial.printf("Size of frame: %d\n", sizeof(frame));
+
   wait_ready();
 
   if (AUTO_INIT) {
@@ -267,15 +271,20 @@ void processCommand(String command) {
     print_exchange_buffer(BS_SET_MODULATION_FREQUENCY, 0, sizeof(BS_SET_MODULATION_FREQUENCY) / sizeof(BS_SET_MODULATION_FREQUENCY[0]));
     print_exchange_buffer(BS_SET_INTEGRATION_TIME, 0, sizeof(BS_SET_INTEGRATION_TIME) / sizeof(BS_SET_INTEGRATION_TIME[0]));
   } else if (command == "c" || command == "s" || command == "shutter") {
-    print_exchange(0x8200);
-    print_exchange(0x5801); // Set trigger
+    if (!BATCH_MODE) {
+      print_exchange(0x8200);
+      print_exchange(0x5801); // Set trigger
+    } else {
+      exchange(0x8200);
+      exchange(0x5801); // Set trigger
+    }
     
     int16_t frame[8*8];
     uint16_t row_buf[24+1];
     uint8_t row2[24];
 
     // Read frame
-    Serial.println("frame:");
+    Serial.printf("FR\n");
     unsigned long delay = 0;
     unsigned long ds = 0;
     unsigned long start = micros();
@@ -309,13 +318,15 @@ void processCommand(String command) {
       }
     }
     unsigned long stop = micros();
-    Serial.printf("micros elapsed: %ld\n", stop-start);
-    Serial.printf("micros delay: %ld\n", delay);
-    // Serial.println();
-    // printFrame(frame);
-    Serial.println();
-    printFrameScaled(frame);
-    Serial.println();
+    if (!BATCH_MODE) {
+      Serial.printf("micros elapsed: %ld\n", stop-start);
+      Serial.printf("micros delay: %ld\n", delay);
+      Serial.println();
+      printFrameScaled(frame);
+      Serial.println();
+    } else {
+      Serial.write((char*)frame, sizeof(frame));
+    }
   } else if (command == "dr") {
     int dataRdy = digitalRead(DATA_RDY);
     Serial.printf("dataRdy: %d\n", dataRdy);
@@ -337,12 +348,17 @@ void loop() {
 
 byte count = 0;
 
-int print_exchange(int tx) {
+int exchange(int tx) {
   hspi->beginTransaction(SPISettings(spiClk, MSBFIRST, SPI_MODE));
   digitalWrite(HSPI_SS, LOW);
   uint16_t rx = hspi->transfer16(tx);
   digitalWrite(HSPI_SS, HIGH);
   hspi->endTransaction();
+  return rx;
+}
+
+int print_exchange(int tx) {
+  uint16_t rx = exchange(tx);
   Serial.printf("tx/rx %04X/%04X\n", tx, rx);
   return rx;
 }
@@ -372,7 +388,6 @@ void exchange_buffer(const uint16_t tx[], int tx_offset, int count, uint16_t rx[
 }
 
 void wait_ready() {
-  //DUMMY Actually look at response
   Serial.println("delaying for ready....");
   for (int i = 0; i < 30; i++) {
     uint16_t rx = print_exchange(0x0000);
