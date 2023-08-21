@@ -32,7 +32,10 @@ fn main() {
         //ft.set_latency_timer(Duration::from_millis(16))?;
         //ft.set_flow_control_rts_cts()?;
         device.set_bitmode(0x00, ftdi::BitMode::Reset).unwrap();
-        device.set_bitmode(0x00, ftdi::BitMode::Syncff).unwrap(); // Synchronous FIFO
+
+        // Ok, so - setting this or not setting this gives different behavior, which is weird, because I don't think you can set CPU FIFO mode from code?
+        // AUGH.  Removing this gives good behavior...?
+        //device.set_bitmode(0x00, ftdi::BitMode::Syncff).unwrap(); // Synchronous FIFO
 
         let mut buf0: Vec<u8> = vec![0; RX_BUF_SIZE];
         let mut buf1: Vec<u8> = vec![0; RX_BUF_SIZE];
@@ -46,15 +49,21 @@ fn main() {
             let t: u128 = now.elapsed().as_micros();
             let z: u128 = (RX_BUF_SIZE * 1000000).try_into().unwrap();
             total += u128::try_from(RX_BUF_SIZE).unwrap();
-    
+
+            for i in 0..buf0.len() {
+                buf0[i] = buf0[i].reverse_bits();
+            }
+                
             let mut last: u8 = 0b00000000; //DUMMY May skip first byte, or erroneously admit it
             let mut j = 0;
-            for i in 0..buf0.len() {
-                if last != (buf0[i] & 0b10000000) {
-                    buf1[j] = buf0[i] & 0b01111111;
-                    j += 1;
+            if false {
+                for i in 0..buf0.len() {
+                    if last != (buf0[i] & 0b10000000) {
+                        buf1[j] = buf0[i] & 0b01111111;
+                        j += 1;
+                    }
+                    last = buf0[i] & 0b10000000;
                 }
-                last = buf0[i] & 0b10000000;
             }
 
             if false { // 019,019,148,148,021,021
@@ -76,7 +85,7 @@ fn main() {
                 println!();                
             }
 
-            if true { // 015, 015,-016,-016, 017, 017
+            if false { // 015, 015,-016,-016, 017, 017
                 let n0 = min(buf0.len(), MAX_PRINT_SIZE);
                 last = 0;
                 print!("rx0: ");
@@ -164,6 +173,53 @@ fn main() {
                     println!("skips {skips} missed avg {:.2} entries, bookending {:.2} entries", (skipTotal as f64) / (skips as f64), (skiplens as f64) / (skips as f64));
                 }
             }
+
+            if true { // 125,126,127,128,129
+                let n = min(buf0.len(), MAX_PRINT_SIZE);
+                print!("rx1: ");
+                last = 0;
+                if n < buf0.len() {
+                    for i in 0..n {
+                        if buf0[i] == ((last.overflowing_add(1).0)) {
+                            print!("{:#03},", buf0[i]);
+                        } else {
+                            print!("\x1b[31m{:#03}\x1b[0m,", buf0[i]);
+                        }
+                        last = buf0[i];
+                    }
+                    print!("...");
+                    for i in (buf0.len()-n)..buf0.len() {
+                        if buf0[i] == ((last.overflowing_add(1).0)) {
+                            print!("{:#03},", buf0[i]);
+                        } else {
+                            print!("\x1b[31m{:#03}\x1b[0m,", buf0[i]);
+                        }
+                        last = buf0[i];
+                    }
+                } else {
+                    let mut skips: u32 = 0;
+                    let mut skiplens: u64 = 0;
+                    let mut skipTotal: u64 = 0;
+                    let mut curSkip: u64 = 0;
+                    for i in 0..n {
+                        if buf0[i] == ((last.overflowing_add(1).0)) {
+                            print!("{:#03},", buf0[i]);
+                            curSkip += 1;
+                        } else {
+                            print!("\x1b[31m{:#03}\x1b[0m,", buf0[i]);
+                            skips += 1;
+                            skiplens += curSkip;
+                            skipTotal += buf0[i].wrapping_sub(last) as u64;
+                            curSkip = 0;
+                        }
+                        last = buf0[i];
+                    }
+                    println!();
+                    println!();
+                    println!("skips {skips} missed avg {:.2} entries, bookending {:.2} entries", (skipTotal as f64) / (skips as f64), (skiplens as f64) / (skips as f64));
+                }
+            }
+
 
             // if n < rx_buf.len() {
             //     for i in 0..n {
