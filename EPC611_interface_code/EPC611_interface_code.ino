@@ -127,7 +127,15 @@ static const int spiClk = 16000000;
 SPIClass * hspi = NULL;
 
 void setup() {
-  Serial.begin(115200);
+  //Serial.begin(115200);
+  Serial.begin(921600);
+
+  // Serial.begin(1000000);
+
+  //Serial.begin(1500000);
+  // Serial.begin(2000000);
+
+
   delay(2000);
   Serial.println(MISO);
   Serial.print("MISO ");
@@ -335,15 +343,27 @@ void processCommand(String command) {
   }
 }
 
-
+long timer = 0;
 // the loop function runs over and over again until power down or reset
 void loop() {
   if (AUTO_SHUTTER) {
-    processCommand("s");
+    // long t = micros();
+    // long diff = t - timer;
+    // Serial.printf("out: %ld", diff);
+    // timer = t;
+
+    while (true) {
+      processCommand("s");
+    }
+
+    // t = micros();
+    // diff = t - timer;
+    // Serial.printf("in: %ld", diff);
+    // timer = t;
   } else {
     readSerialCommand();
   }
-  delay(250);
+  //delay(10);
 }
 
 byte count = 0;
