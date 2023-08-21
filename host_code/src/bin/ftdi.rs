@@ -50,9 +50,9 @@ fn main() {
             let z: u128 = (RX_BUF_SIZE * 1000000).try_into().unwrap();
             total += u128::try_from(RX_BUF_SIZE).unwrap();
 
-            for i in 0..buf0.len() {
-                buf0[i] = buf0[i].reverse_bits();
-            }
+            // for i in 0..buf0.len() {
+            //     buf0[i] = buf0[i].reverse_bits();
+            // }
                 
             let mut last: u8 = 0b00000000; //DUMMY May skip first byte, or erroneously admit it
             let mut j = 0;
