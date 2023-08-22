@@ -222,7 +222,9 @@ fn main() {
                     println!();
                     println!("skips {skips} missed avg {:.2} entries, bookending {:.2} entries", (skipTotal as f64) / (skips as f64), (skiplens as f64) / (skips as f64));
                     println!("giving error rate 1/{:.6}", (buf0.len() as f64) / (skipTotal as f64)); //DUMMY This is strange in some cases, like flatline, technically skips nothing
-                    println!("Skips: {:?}", skipList);
+                    if skipList.len() <= 10 {
+                        println!("Skips: {:?}", skipList);
+                    }
                 }
             }
 
