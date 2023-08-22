@@ -53,7 +53,11 @@ fn main() {
             total += u128::try_from(RX_BUF_SIZE).unwrap();
 
             for i in 0..buf0.len() {
+                // Reverse bits
                 buf0[i] = buf0[i].reverse_bits();
+
+                // Reverse asc/desc
+                buf0[i] = buf0[i].wrapping_mul(0xFF);
             }
                 
             let mut last: u8 = 0b00000000; //DUMMY May skip first byte, or erroneously admit it
