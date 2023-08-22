@@ -37,6 +37,8 @@ fn main() {
         // AUGH.  Removing this gives good behavior...?
         //device.set_bitmode(0x00, ftdi::BitMode::Syncff).unwrap(); // Synchronous FIFO
 
+        //device.write(&[1,2,3,4]).unwrap();
+
         let mut buf0: Vec<u8> = vec![0; RX_BUF_SIZE];
         let mut buf1: Vec<u8> = vec![0; RX_BUF_SIZE];
 
@@ -197,6 +199,7 @@ fn main() {
                         last = buf0[i];
                     }
                 } else {
+                    let mut skipList: Vec<usize> = Vec::new();
                     let mut skips: u32 = 0;
                     let mut skiplens: u64 = 0;
                     let mut skipTotal: u64 = 0;
@@ -207,6 +210,7 @@ fn main() {
                             curSkip += 1;
                         } else {
                             print!("\x1b[31m{:#03}\x1b[0m,", buf0[i]);
+                            skipList.push(i);
                             skips += 1;
                             skiplens += curSkip;
                             skipTotal += buf0[i].wrapping_sub(last) as u64;
@@ -217,7 +221,8 @@ fn main() {
                     println!();
                     println!();
                     println!("skips {skips} missed avg {:.2} entries, bookending {:.2} entries", (skipTotal as f64) / (skips as f64), (skiplens as f64) / (skips as f64));
-                    println!("giving error rate 1/{:.6}", (buf0.len() as f64) / (skipTotal as f64));
+                    println!("giving error rate 1/{:.6}", (buf0.len() as f64) / (skipTotal as f64)); //DUMMY This is strange in some cases, like flatline, technically skips nothing
+                    println!("Skips: {:?}", skipList);
                 }
             }
 
