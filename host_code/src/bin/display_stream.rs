@@ -92,16 +92,18 @@ impl eframe::App for RenderApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             let mut rng = rand::thread_rng();
 
+            let frame = self.rx_frame.recv().expect("failed to rx frame");
             let now = Instant::now();
             let p = ui.painter_at(Rect{min:Pos2{x:0 as f32, y:0 as f32}, max:Pos2{x:400.0,y:400.0}});
-            for y in 0..10 {
-                for x in 0..10 {
-                    let n1: u8 = rng.gen();
-                    p.rect_filled(Rect{min:Pos2{x:(x*10) as f32,y:(y*10) as f32}, max:Pos2{x:((x+1)*10) as f32,y:((y+1)*10) as f32}}, Rounding::none(), Color32::from_rgb(n1, n1, n1));
+            for (y, col) in frame.iter().enumerate() {
+                for (x, val) in col.iter().enumerate() {
+                    let n: u8 = *val as u8;
+                    p.rect_filled(Rect{min:Pos2{x:(x*10) as f32,y:(y*10) as f32}, max:Pos2{x:((x+1)*10) as f32,y:((y+1)*10) as f32}}, Rounding::none(), Color32::from_rgb(n, n, n));
                 }
             }
             let t: u128 = now.elapsed().as_micros();
             //println!("total {t}");
         });
+        ctx.request_repaint();
     }
 }
