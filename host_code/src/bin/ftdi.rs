@@ -4,10 +4,10 @@
 
 extern crate ftdi;
 
-use std::{io::{Read, Write}, time::Instant, convert::TryInto, convert::TryFrom};
+use std::{io::{Read, Write, stdout}, time::Instant, convert::TryInto, convert::TryFrom, thread};
 use std::cmp::min;
 
-const RX_BUF_SIZE: usize = 0x100000;//*0x200 //CHECK Try large values, now?
+const RX_BUF_SIZE: usize = 16*1024*1024+10;//*0x200 //CHECK Try large values, now?
 // const MAX_PRINT_SIZE: usize = 0x100;
 const MAX_PRINT_SIZE: usize = 0x10000000;
 const ITER: i32 = 0x01;
@@ -56,8 +56,8 @@ fn main() {
                 // Reverse bits
                 buf0[i] = buf0[i].reverse_bits();
 
-                // Reverse asc/desc
-                buf0[i] = buf0[i].wrapping_mul(0xFF);
+                // // Reverse asc/desc
+                // buf0[i] = buf0[i].wrapping_mul(0xFF);
             }
                 
             let mut last: u8 = 0b00000000; //DUMMY May skip first byte, or erroneously admit it
@@ -180,7 +180,7 @@ fn main() {
                 }
             }
 
-            if true { // 125,126,127,128,129
+            if true { // 125,126,127,128,129 - red non-ascending
                 let n = min(buf0.len(), MAX_PRINT_SIZE);
                 print!("rx1: ");
                 last = 0;
@@ -232,6 +232,15 @@ fn main() {
                 }
             }
 
+            if false { // 00FF00FF - unmarked hex dump
+                for i in &buf0 {
+                    print!("{:02X}", i);
+                }
+            }
+
+            if false { // string!0123 - unmarked char dump
+                stdout().write_all(&buf0).unwrap();
+            }
 
             // if n < rx_buf.len() {
             //     for i in 0..n {
@@ -267,7 +276,7 @@ fn main() {
             println!();
             println!();
 
-            println!("{RX_BUF_SIZE} @ {} = {} B/s", t, z/t);
+            println!("{RX_BUF_SIZE} @ {} = {} B/s", t, z.checked_div(t).unwrap_or(0));
             println!();
             println!("{RX_BUF_SIZE} : {j} = {:.2}", (j as f64) / (RX_BUF_SIZE as f64));
 
