@@ -4,10 +4,11 @@
 
 extern crate ftdi;
 
-use std::{io::{Read, Write, stdout}, time::Instant, convert::TryInto, convert::TryFrom, thread};
+use std::{io::{Read, Write, stdout}, time::Instant, convert::TryInto, convert::TryFrom, thread, collections::HashMap};
 use std::cmp::min;
 
-const RX_BUF_SIZE: usize = 16*1024*1024+10;//*0x200 //CHECK Try large values, now?
+// const RX_BUF_SIZE: usize = 16*1024*1024;//*0x200 //CHECK Try large values, now?
+const RX_BUF_SIZE: usize = 256*1024;//*0x200 //CHECK Try large values, now?
 // const MAX_PRINT_SIZE: usize = 0x100;
 const MAX_PRINT_SIZE: usize = 0x10000000;
 const ITER: i32 = 0x01;
@@ -22,7 +23,7 @@ fn main() {
         println!("Device found and opened");
         device.usb_reset().unwrap();
         device.usb_purge_buffers().unwrap();
-        device.set_latency_timer(16).unwrap();
+        device.set_latency_timer(255).unwrap();
 
         // Missing: set_usb_parameters
         device.set_read_chunksize(0x10000);
@@ -35,7 +36,7 @@ fn main() {
 
         // Ok, so - setting this or not setting this gives different behavior, which is weird, because I don't think you can set CPU FIFO mode from code?
         // AUGH.  Removing this gives good behavior...?
-        //device.set_bitmode(0x00, ftdi::BitMode::Syncff).unwrap(); // Synchronous FIFO
+        device.set_bitmode(0x00, ftdi::BitMode::Syncff).unwrap(); // Synchronous FIFO
 
         //device.write(&[1,2,3,4]).unwrap();
 
@@ -203,17 +204,24 @@ fn main() {
                         last = buf0[i];
                     }
                 } else {
+                    let mut counts: HashMap<u8, usize> = HashMap::new();
                     let mut skipList: Vec<usize> = Vec::new();
                     let mut skips: u32 = 0;
                     let mut skiplens: u64 = 0;
                     let mut skipTotal: u64 = 0;
                     let mut curSkip: u64 = 0;
                     for i in 0..n {
-                        if buf0[i] == ((last.overflowing_add(1).0)) {
-                            print!("{:#03},", buf0[i]);
+                        let count = counts.entry(buf0[i]).or_insert(0);
+                        *count += 1;
+
+                        // if buf0[i] == ((last.overflowing_add(1).0)) {
+                        if buf0[i] == last {
+                            // print!("{:#03},", buf0[i]);
+                            print!("{:08b},\n", buf0[i]);
                             curSkip += 1;
                         } else {
-                            print!("\x1b[31m{:#03}\x1b[0m,", buf0[i]);
+                            // print!("\x1b[31m{:#03}\x1b[0m,", buf0[i]);
+                            print!("\x1b[31m{:08b}\x1b[0m,\n", buf0[i]);
                             skipList.push(i);
                             skips += 1;
                             skiplens += curSkip;
@@ -228,6 +236,13 @@ fn main() {
                     println!("giving error rate 1/{:.6}", (buf0.len() as f64) / (skipTotal as f64)); //DUMMY This is strange in some cases, like flatline, technically skips nothing
                     if skipList.len() <= 10 {
                         println!("Skips: {:?}", skipList);
+                    }
+                    println!("Counts:");
+                    for k in 0..=255 {
+                        let v = *counts.get(&k).unwrap_or(&0);
+                        if v > 0 {
+                            println!("{k}: {v}")
+                        }
                     }
                 }
             }
