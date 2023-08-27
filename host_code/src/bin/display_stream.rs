@@ -55,15 +55,34 @@ fn main() -> Result<(), eframe::Error> {
 
     thread::spawn(move || {
         println!("Starting processor...");
+        let mut header: VecDeque<u8> = VecDeque::new();
+        let mut skips: usize = 0;
         loop {
-            let mut frame = vec![vec![0; NY]; NX];
-            for y in 0..NY {
-                for x in 0..NX {
-                    frame[x][y] = rx_byte.recv().expect("error receiving byte") as i16;
-                    //DUMMY Frame sync, 2byte
-                }
+            //DUMMY FR\n
+            while header.len() < 3 {
+                header.push_back(rx_byte.recv().expect("error receiving byte"));
             }
-            tx_frame.send(frame).expect("failed to send frame");
+
+            if header[0] == b'F' && header[1] == b'R' && header[2] == b'\n' {
+                let mut frame = vec![vec![0; NY]; NX];
+                if skips > 0 {
+                    println!("skipped {skips}");
+                    skips = 0;
+                }
+                for y in 0..NY {
+                    for x in 0..NX {
+                        let lsb = rx_byte.recv().expect("error receiving byte");
+                        let msb = rx_byte.recv().expect("error receiving byte");
+                        frame[x][y] = (((msb as u16) << 8) | (lsb as u16)) as i16;
+                    }
+                }
+
+                tx_frame.send(frame).expect("failed to send frame");
+            } else {
+                skips = skips+1;
+                header.push_back(rx_byte.recv().expect("error receiving byte"));
+                header.pop_front();
+            }
         }
     });
 
@@ -93,11 +112,27 @@ impl eframe::App for RenderApp {
             let mut rng = rand::thread_rng();
 
             let frame = self.rx_frame.recv().expect("failed to rx frame");
+
+            let mut min: i16 = frame[0][0];
+            let mut max: i16 = min;
+
+            for col in &frame {
+                for v in col {
+                    if v < &min {
+                        min = *v;
+                    } else if v > &max {
+                        max = *v;
+                    }
+                }
+            }
+
             let now = Instant::now();
             let p = ui.painter_at(Rect{min:Pos2{x:0 as f32, y:0 as f32}, max:Pos2{x:400.0,y:400.0}});
             for (y, col) in frame.iter().enumerate() {
                 for (x, val) in col.iter().enumerate() {
-                    let n: u8 = *val as u8;
+                    // let n: u8 = *val as u8;
+                    let n = (((val - min) as i32 * 255) / (max - min) as i32) as u8;
+
                     p.rect_filled(Rect{min:Pos2{x:(x*10) as f32,y:(y*10) as f32}, max:Pos2{x:((x+1)*10) as f32,y:((y+1)*10) as f32}}, Rounding::none(), Color32::from_rgb(n, n, n));
                 }
             }

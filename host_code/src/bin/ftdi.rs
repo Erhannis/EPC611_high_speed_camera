@@ -7,8 +7,8 @@ extern crate ftdi;
 use std::{io::{Read, Write, stdout}, time::Instant, convert::TryInto, convert::TryFrom, thread, collections::HashMap};
 use std::cmp::min;
 
-// const RX_BUF_SIZE: usize = 16*1024*1024;//*0x200 //CHECK Try large values, now?
-const RX_BUF_SIZE: usize = 256*1024;//*0x200 //CHECK Try large values, now?
+const RX_BUF_SIZE: usize = 16*1024*1024;//*0x200 //CHECK Try large values, now?
+// const RX_BUF_SIZE: usize = 256*1024;//*0x200 //CHECK Try large values, now?
 // const MAX_PRINT_SIZE: usize = 0x100;
 const MAX_PRINT_SIZE: usize = 0x10000000;
 const ITER: i32 = 0x01;
@@ -23,7 +23,7 @@ fn main() {
         println!("Device found and opened");
         device.usb_reset().unwrap();
         device.usb_purge_buffers().unwrap();
-        device.set_latency_timer(255).unwrap();
+        device.set_latency_timer(2).unwrap();
 
         // Missing: set_usb_parameters
         device.set_read_chunksize(0x10000);
@@ -36,7 +36,7 @@ fn main() {
 
         // Ok, so - setting this or not setting this gives different behavior, which is weird, because I don't think you can set CPU FIFO mode from code?
         // AUGH.  Removing this gives good behavior...?
-        device.set_bitmode(0x00, ftdi::BitMode::Syncff).unwrap(); // Synchronous FIFO
+        // device.set_bitmode(0x00, ftdi::BitMode::Syncff).unwrap(); // Synchronous FIFO
 
         //device.write(&[1,2,3,4]).unwrap();
 
@@ -181,7 +181,7 @@ fn main() {
                 }
             }
 
-            if true { // 125,126,127,128,129 - red non-ascending
+            if false { // 125,126,127,128,129 - red non-ascending
                 let n = min(buf0.len(), MAX_PRINT_SIZE);
                 print!("rx1: ");
                 last = 0;
@@ -204,6 +204,14 @@ fn main() {
                         last = buf0[i];
                     }
                 } else {
+                    let binary = false;
+                    enum ErrorCheck {
+                        ASCENDING,
+                        EQUAL,
+                        NONE
+                    }
+                    let error_check: ErrorCheck = ErrorCheck::ASCENDING;
+
                     let mut counts: HashMap<u8, usize> = HashMap::new();
                     let mut skipList: Vec<usize> = Vec::new();
                     let mut skips: u32 = 0;
@@ -214,14 +222,25 @@ fn main() {
                         let count = counts.entry(buf0[i]).or_insert(0);
                         *count += 1;
 
-                        // if buf0[i] == ((last.overflowing_add(1).0)) {
-                        if buf0[i] == last {
-                            // print!("{:#03},", buf0[i]);
-                            print!("{:08b},\n", buf0[i]);
+                        let has_error: bool;
+                        match error_check {
+                            ErrorCheck::ASCENDING => has_error = !(buf0[i] == ((last.overflowing_add(1).0))),
+                            ErrorCheck::EQUAL => has_error = !(buf0[i] == last),
+                            ErrorCheck::NONE => has_error = false,
+                        }
+                        if !has_error {
+                            if binary {
+                                print!("{:08b},\n", buf0[i]);
+                            } else {
+                                print!("{:#03},", buf0[i]);
+                            }
                             curSkip += 1;
                         } else {
-                            // print!("\x1b[31m{:#03}\x1b[0m,", buf0[i]);
-                            print!("\x1b[31m{:08b}\x1b[0m,\n", buf0[i]);
+                            if binary {
+                                print!("\x1b[31m{:08b}\x1b[0m,\n", buf0[i]);
+                            } else {
+                                print!("\x1b[31m{:#03}\x1b[0m,", buf0[i]);
+                            }
                             skipList.push(i);
                             skips += 1;
                             skiplens += curSkip;
@@ -255,6 +274,31 @@ fn main() {
 
             if false { // string!0123 - unmarked char dump
                 stdout().write_all(&buf0).unwrap();
+            }
+
+            if true { // 8x8 16b frames
+                //let mut in_
+                let FRAME_SIZE = 3+8*8*2;
+                let mut i: usize = 0;
+                let mut skips: usize = 0;
+                while i < (buf0.len()+1-FRAME_SIZE) {
+                    if buf0[i] == b'F' && buf0[i+1] == b'R' && buf0[i+2] == b'\n' {
+                        println!("skipped {skips}");
+                        skips = 0;
+                        print!("FR\n");
+                        i = i+3;
+                        for y in 0..8 {
+                            for x in 0..8 {
+                                print!("{:02X}{:02X}", buf0[i], buf0[i+1]);
+                                i = i+2;
+                            }
+                            println!();
+                        }
+                    } else {
+                        skips = skips+1;
+                        i = i+1;
+                    }
+                }
             }
 
             // if n < rx_buf.len() {
