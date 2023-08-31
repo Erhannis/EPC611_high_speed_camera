@@ -57,6 +57,9 @@ fn main() -> Result<(), eframe::Error> {
         println!("Starting processor...");
         let mut header: VecDeque<u8> = VecDeque::new();
         let mut skips: usize = 0;
+        let mut tracker: TimedTracker<()> = TimedTracker::new(Duration::from_secs(10));
+        let target_fps = 10.0;
+        let mut consecutive_skipped = 0;
         loop {
             //DUMMY FR\n
             while header.len() < 3 {
@@ -77,7 +80,16 @@ fn main() -> Result<(), eframe::Error> {
                     }
                 }
 
-                tx_frame.send(frame).expect("failed to send frame");
+                tracker.add(());
+                let fps = tracker.countPerSecond();
+                let ratio = fps / target_fps;
+                if consecutive_skipped as f64 >= ratio - 1.0 {
+                    println!("processor stats {consecutive_skipped} {fps} {target_fps} {ratio}");
+                    tx_frame.send(frame).expect("failed to send frame");
+                    consecutive_skipped = 0;
+                } else {
+                    consecutive_skipped += 1;
+                }
             } else {
                 skips = skips+1;
                 header.push_back(rx_byte.recv().expect("error receiving byte"));
@@ -87,7 +99,8 @@ fn main() -> Result<(), eframe::Error> {
     });
 
     let app = RenderApp {
-        rx_frame: rx_frame
+        rx_frame: rx_frame,
+        last_time: Instant::now(),
     };
 
 
@@ -103,15 +116,37 @@ fn main() -> Result<(), eframe::Error> {
 }
 
 struct RenderApp {
-    rx_frame: Receiver<Vec<Vec<i16>>>
+    rx_frame: Receiver<Vec<Vec<i16>>>,
+    last_time: Instant,
 }
 
 impl eframe::App for RenderApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
+            let cur_time = Instant::now();
+            println!("elapsed ms out: {}", cur_time.duration_since(self.last_time).as_millis());
+            self.last_time = cur_time;
             let mut rng = rand::thread_rng();
 
             let frame = self.rx_frame.recv().expect("failed to rx frame");
+
+            //NEXT
+            fix fps, move limiter here;
+
+            if false { // Skip built-up frames
+                let immediate = Duration::from_millis(0);
+                let mut skipped = -1;
+                let mut done = false;
+                while !done {
+                    skipped += 1;
+                    let res = self.rx_frame.recv_timeout(immediate);
+                    done = match res {
+                        Ok(_) => false,
+                        Err(_) => true,
+                    }
+                }
+                println!("skipped {skipped} frames");
+            }
 
             let mut min: i16 = frame[0][0];
             let mut max: i16 = min;
@@ -131,14 +166,61 @@ impl eframe::App for RenderApp {
             for (y, col) in frame.iter().enumerate() {
                 for (x, val) in col.iter().enumerate() {
                     // let n: u8 = *val as u8;
-                    let n = (((val - min) as i32 * 255) / (max - min) as i32) as u8;
+                    let n = if max == min {
+                        0xFF
+                    } else {
+                        (((val - min) as i32 * 255) / (max - min) as i32) as u8
+                    };
 
                     p.rect_filled(Rect{min:Pos2{x:(x*10) as f32,y:(y*10) as f32}, max:Pos2{x:((x+1)*10) as f32,y:((y+1)*10) as f32}}, Rounding::none(), Color32::from_rgb(n, n, n));
                 }
             }
             let t: u128 = now.elapsed().as_micros();
             //println!("total {t}");
+
+            let cur_time = Instant::now();
+            println!("elapsed ms in:  {}", cur_time.duration_since(self.last_time).as_millis());
+            self.last_time = cur_time;
         });
         ctx.request_repaint();
+    }
+}
+
+
+
+//// TimedTracker
+struct TimedTracker<T> {
+    entries: VecDeque<(Instant, T)>,
+    timeout: Duration,
+}
+
+impl<T> TimedTracker<T> {
+    pub fn new(timeout: Duration) -> Self {
+        Self {
+            entries: VecDeque::new(),
+            timeout: timeout,
+        }
+    }
+
+    fn clean(&mut self) -> Instant {
+        let t = Instant::now();
+        let dead = t.checked_sub(self.timeout).expect("time math failed");
+        self.entries.retain(|(t, _)| t > &dead);
+        return t;
+    }
+
+    fn add(&mut self, v: T) {
+        let t = self.clean();
+        self.entries.push_back((t, v));
+    }
+
+    fn count(&mut self) -> usize {
+        let t = self.clean();
+        return self.entries.len();
+    }
+
+    fn countPerSecond(&mut self) -> f64 {
+        let t = self.clean();
+        return (self.entries.len() as f64) / self.timeout.as_secs_f64();
     }
 }
