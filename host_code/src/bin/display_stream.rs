@@ -57,9 +57,6 @@ fn main() -> Result<(), eframe::Error> {
         println!("Starting processor...");
         let mut header: VecDeque<u8> = VecDeque::new();
         let mut skips: usize = 0;
-        let mut tracker: TimedTracker<()> = TimedTracker::new(Duration::from_secs(10));
-        let target_fps = 10.0;
-        let mut consecutive_skipped = 0;
         loop {
             //DUMMY FR\n
             while header.len() < 3 {
@@ -80,16 +77,7 @@ fn main() -> Result<(), eframe::Error> {
                     }
                 }
 
-                tracker.add(());
-                let fps = tracker.countPerSecond();
-                let ratio = fps / target_fps;
-                if consecutive_skipped as f64 >= ratio - 1.0 {
-                    println!("processor stats {consecutive_skipped} {fps} {target_fps} {ratio}");
-                    tx_frame.send(frame).expect("failed to send frame");
-                    consecutive_skipped = 0;
-                } else {
-                    consecutive_skipped += 1;
-                }
+                tx_frame.send(frame).expect("failed to send frame");
             } else {
                 skips = skips+1;
                 header.push_back(rx_byte.recv().expect("error receiving byte"));
@@ -98,8 +86,36 @@ fn main() -> Result<(), eframe::Error> {
         }
     });
 
+    let (tx_frame_capped, rx_frame_capped) = mpsc::sync_channel(1024);
+
+    thread::spawn(move || {
+        println!("Starting limiter...");
+        let mut rx_tracker = TimedTracker::new(Duration::from_secs(10));
+        let mut tx_tracker = TimedTracker::new(Duration::from_secs(10));
+        let mut consecutive_skipped = 0;
+        loop {
+            let frame = rx_frame.recv().expect("failed to rx frame");
+
+            rx_tracker.add(());
+            let rx_fps = rx_tracker.countPerSecond();
+            let ratio = rx_fps / TARGET_FPS;
+            if consecutive_skipped as f64 >= ratio - 1.0 {
+                tx_tracker.add(());
+                let tx_fps = tx_tracker.countPerSecond();
+                println!("processor stats {} {rx_fps} {TARGET_FPS} {ratio} {tx_fps}", consecutive_skipped);
+                tx_frame_capped.send(frame).expect("failed to send frame (capped)");
+                // I *think* this should keep it on track...but I'm not sure.
+                thread::sleep(Duration::from_micros(((tx_fps/TARGET_FPS)*(1000000.0/TARGET_FPS)) as u64));
+                consecutive_skipped = 0;
+            } else {
+                consecutive_skipped += 1;
+                continue;
+            }
+        }
+    });
+
     let app = RenderApp {
-        rx_frame: rx_frame,
+        rx_frame: rx_frame_capped,
         last_time: Instant::now(),
     };
 
@@ -115,6 +131,8 @@ fn main() -> Result<(), eframe::Error> {
     )
 }
 
+const TARGET_FPS: f64 = 10.0;
+
 struct RenderApp {
     rx_frame: Receiver<Vec<Vec<i16>>>,
     last_time: Instant,
@@ -129,24 +147,6 @@ impl eframe::App for RenderApp {
             let mut rng = rand::thread_rng();
 
             let frame = self.rx_frame.recv().expect("failed to rx frame");
-
-            //NEXT
-            fix fps, move limiter here;
-
-            if false { // Skip built-up frames
-                let immediate = Duration::from_millis(0);
-                let mut skipped = -1;
-                let mut done = false;
-                while !done {
-                    skipped += 1;
-                    let res = self.rx_frame.recv_timeout(immediate);
-                    done = match res {
-                        Ok(_) => false,
-                        Err(_) => true,
-                    }
-                }
-                println!("skipped {skipped} frames");
-            }
 
             let mut min: i16 = frame[0][0];
             let mut max: i16 = min;
