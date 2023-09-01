@@ -3,9 +3,21 @@ use std::{time::{Instant, Duration}, sync::mpsc::{self, SyncSender, Receiver}, t
 use eframe::{egui, epaint::{Rect, Pos2, Rounding, Color32}};
 use rand::Rng;
 
+enum FrameMode {
+    REALTIME,
+    BURST_N(u64),
+}
+enum ExposureMode {
+    SCALED,
+    ABSOLUTE,
+}
+
 const NX: usize = 8;
 const NY: usize = 8;
 const RX_BUF_SIZE: usize = 64*1024;
+const TARGET_FPS: f64 = 30.0; //CHECK Does the render hold things up and cause a pileup?
+const FRAME_MODE: FrameMode = FrameMode::BURST_N(2*TARGET_FPS as u64);
+const EXPOSURE_MODE: ExposureMode = ExposureMode::ABSOLUTE;
 
 
 fn main() -> Result<(), eframe::Error> {
@@ -51,7 +63,7 @@ fn main() -> Result<(), eframe::Error> {
         }
     });
 
-    let (tx_frame, rx_frame) = mpsc::sync_channel(1024);
+    let (tx_frame, rx_frame) = mpsc::sync_channel(1024*16);
 
     thread::spawn(move || {
         println!("Starting processor...");
@@ -95,18 +107,55 @@ fn main() -> Result<(), eframe::Error> {
         let mut consecutive_skipped = 0;
         
         loop {
-            let frame = rx_frame.recv().expect("failed to rx frame");
+            match FRAME_MODE {
+                FrameMode::REALTIME => {
+                    let frame = rx_frame.recv().expect("failed to rx frame");
 
-            rx_tracker.add(());
-            let rx_fps = rx_tracker.countPerSecond();
-            let ratio = rx_fps / TARGET_FPS;
-            if consecutive_skipped as f64 >= ratio - 1.0 {
-                println!("processor stats {} {rx_fps} {TARGET_FPS} {ratio}", consecutive_skipped);
-                tx_frame_capped.send(frame).expect("failed to send frame (capped)");
-                consecutive_skipped = 0;
-            } else {
-                consecutive_skipped += 1;
-                continue;
+                    rx_tracker.add(());
+                    let rx_fps = rx_tracker.countPerSecond();
+                    let ratio = rx_fps / TARGET_FPS;
+                    if consecutive_skipped as f64 >= ratio - 1.0 {
+                        println!("processor stats {} {rx_fps} {TARGET_FPS} {ratio}", consecutive_skipped);
+                        tx_frame_capped.send(frame).expect("failed to send frame (capped)");
+                        consecutive_skipped = 0;
+                    } else {
+                        consecutive_skipped += 1;
+                        continue;
+                    }
+                },
+                FrameMode::BURST_N(burst_size) => {
+                    let start = Instant::now();
+                    let mut next_send = Instant::now();
+                    let mut last_send = Instant::now();
+                    let delay = Duration::from_secs_f64(1.0/TARGET_FPS);
+                    // Send burst
+                    for _ in 0..burst_size {
+                        let frame = rx_frame.recv().expect("failed to rx frame");
+                        println!("delay {}", last_send.elapsed().as_micros());
+                        last_send = Instant::now();
+                        tx_frame_capped.send(frame).expect("failed to send frame (capped)");
+                        let n = Instant::now();
+                        let nap = next_send.duration_since(n);
+                        println!("napping {} {} {}", n.duration_since(start).as_micros(), next_send.duration_since(start).as_micros(), nap.as_micros());
+                        thread::sleep(nap);
+                        println!("napped {} {} ({})", nap.as_micros(), n.elapsed().as_micros(), delay.as_micros());
+                        next_send = next_send.checked_add(delay).expect("time math failed");
+                    }
+
+                    // Skip built-up frames
+                    let immediate = Duration::from_millis(0);
+                    let mut _skipped = -1;
+                    let mut done = false;
+                    while !done {
+                        _skipped += 1;
+                        let res = rx_frame.recv_timeout(immediate);
+                        done = match res {
+                            Ok(_) => false,
+                            Err(_) => true,
+                        }
+                    }
+                    println!("skipped {_skipped} frames");
+                },
             }
         }
     });
@@ -128,8 +177,6 @@ fn main() -> Result<(), eframe::Error> {
     )
 }
 
-const TARGET_FPS: f64 = 30.0;
-
 struct RenderApp {
     rx_frame: Receiver<Vec<Vec<i16>>>,
     last_time: Instant,
@@ -146,8 +193,10 @@ impl eframe::App for RenderApp {
             let frame = self.rx_frame.recv().expect("failed to rx frame");
 
             let mut min: i16 = frame[0][0];
-            let mut max: i16 = min;
-            // max = 0x07FF;
+            let mut max: i16 = match EXPOSURE_MODE {
+                ExposureMode::ABSOLUTE => 0x07FF,
+                ExposureMode::SCALED => min,
+            };
 
             for col in &frame {
                 for v in col {
