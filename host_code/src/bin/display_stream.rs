@@ -78,6 +78,7 @@ fn main() -> Result<(), eframe::Error> {
                 }
 
                 tx_frame.send(frame).expect("failed to send frame");
+                header.clear();
             } else {
                 skips = skips+1;
                 header.push_back(rx_byte.recv().expect("error receiving byte"));
@@ -91,8 +92,8 @@ fn main() -> Result<(), eframe::Error> {
     thread::spawn(move || {
         println!("Starting limiter...");
         let mut rx_tracker = TimedTracker::new(Duration::from_secs(10));
-        let mut tx_tracker = TimedTracker::new(Duration::from_secs(10));
         let mut consecutive_skipped = 0;
+        
         loop {
             let frame = rx_frame.recv().expect("failed to rx frame");
 
@@ -100,12 +101,8 @@ fn main() -> Result<(), eframe::Error> {
             let rx_fps = rx_tracker.countPerSecond();
             let ratio = rx_fps / TARGET_FPS;
             if consecutive_skipped as f64 >= ratio - 1.0 {
-                tx_tracker.add(());
-                let tx_fps = tx_tracker.countPerSecond();
-                println!("processor stats {} {rx_fps} {TARGET_FPS} {ratio} {tx_fps}", consecutive_skipped);
+                println!("processor stats {} {rx_fps} {TARGET_FPS} {ratio}", consecutive_skipped);
                 tx_frame_capped.send(frame).expect("failed to send frame (capped)");
-                // I *think* this should keep it on track...but I'm not sure.
-                thread::sleep(Duration::from_micros(((tx_fps/TARGET_FPS)*(1000000.0/TARGET_FPS)) as u64));
                 consecutive_skipped = 0;
             } else {
                 consecutive_skipped += 1;
@@ -131,7 +128,7 @@ fn main() -> Result<(), eframe::Error> {
     )
 }
 
-const TARGET_FPS: f64 = 10.0;
+const TARGET_FPS: f64 = 30.0;
 
 struct RenderApp {
     rx_frame: Receiver<Vec<Vec<i16>>>,
@@ -150,6 +147,7 @@ impl eframe::App for RenderApp {
 
             let mut min: i16 = frame[0][0];
             let mut max: i16 = min;
+            // max = 0x07FF;
 
             for col in &frame {
                 for v in col {
@@ -166,6 +164,7 @@ impl eframe::App for RenderApp {
             for (y, col) in frame.iter().enumerate() {
                 for (x, val) in col.iter().enumerate() {
                     // let n: u8 = *val as u8;
+                    print!("{:04X} ", val);
                     let n = if max == min {
                         0xFF
                     } else {
@@ -174,6 +173,7 @@ impl eframe::App for RenderApp {
 
                     p.rect_filled(Rect{min:Pos2{x:(x*10) as f32,y:(y*10) as f32}, max:Pos2{x:((x+1)*10) as f32,y:((y+1)*10) as f32}}, Rounding::none(), Color32::from_rgb(n, n, n));
                 }
+                println!();
             }
             let t: u128 = now.elapsed().as_micros();
             //println!("total {t}");
