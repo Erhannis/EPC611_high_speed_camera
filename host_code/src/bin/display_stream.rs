@@ -1,6 +1,7 @@
-use std::{time::{Instant, Duration}, sync::mpsc::{self, SyncSender, Receiver}, thread, collections::VecDeque, io::Read};
+use std::{time::{Instant, Duration}, sync::{mpsc::{self, SyncSender, Receiver}, RwLock, Arc}, thread, collections::VecDeque, io::Read};
 
 use eframe::{egui, epaint::{Rect, Pos2, Rounding, Color32}};
+use portable_atomic::AtomicF64;
 use rand::Rng;
 
 enum FrameMode {
@@ -15,7 +16,7 @@ enum ExposureMode {
 const NX: usize = 8;
 const NY: usize = 8;
 const RX_BUF_SIZE: usize = 64*1024;
-const TARGET_FPS: f64 = 30.0; //CHECK Does the render hold things up and cause a pileup?
+const TARGET_FPS: f64 = 5.0; //CHECK Does the render hold things up and cause a pileup?
 // const FRAME_MODE: FrameMode = FrameMode::BURST_N(2*TARGET_FPS as u64);
 const FRAME_MODE: FrameMode = FrameMode::REALTIME;
 // const EXPOSURE_MODE: ExposureMode = ExposureMode::ABSOLUTE;
@@ -66,9 +67,11 @@ fn main() -> Result<(), eframe::Error> {
     });
 
     let (tx_frame, rx_frame) = mpsc::sync_channel(1024*16);
+    let mut rx_fps0 = Arc::new(AtomicF64::new(0.0));
 
+    let rx_fps = rx_fps0.clone();
     thread::spawn(move || {
-        println!("Starting processor...");
+        println!("Starting bytes to frames processor...");
         let mut header: VecDeque<u8> = VecDeque::new();
         let mut skips: usize = 0;
         let mut tx_tracker = TimedTracker::new(Duration::from_secs(10));
@@ -94,7 +97,9 @@ fn main() -> Result<(), eframe::Error> {
                 }
 
                 tx_frame.send(frame).expect("failed to send frame");
+                
                 tx_tracker.add(());
+                rx_fps.store(tx_tracker.countPerSecond(), portable_atomic::Ordering::Relaxed);
                 if fps_print_limiter.go() {
                     println!("base fps {}", tx_tracker.countPerSecond());
                 }
@@ -109,22 +114,38 @@ fn main() -> Result<(), eframe::Error> {
 
     let (tx_frame_capped, rx_frame_capped) = mpsc::sync_channel(1024);
 
+    let rx_fps = rx_fps0.clone();
     thread::spawn(move || {
         println!("Starting limiter...");
         let mut rx_tracker = TimedTracker::new(Duration::from_secs(10));
         let mut consecutive_skipped = 0;
-        
+
+        let mut fm_next_send = Instant::now();
+        let mut fm_last_send = Instant::now();
+        let frame_delay = Duration::from_secs_f64(1.0/TARGET_FPS);
+    
         loop {
+            //SHAME These are specific to FRAME_MODE
+
             match FRAME_MODE {
                 FrameMode::REALTIME => {
                     let frame = rx_frame.recv().expect("failed to rx frame");
-
                     rx_tracker.add(());
-                    let rx_fps = rx_tracker.countPerSecond();
+
+                    let rx_fps = rx_fps.load(portable_atomic::Ordering::Relaxed);
+                    // let rx_fps = rx_tracker.countPerSecond();
                     let ratio = rx_fps / TARGET_FPS;
                     if consecutive_skipped as f64 >= ratio - 1.0 {
                         println!("processor stats {} {rx_fps} {TARGET_FPS} {ratio}", consecutive_skipped);
+                        println!("delay {}", fm_last_send.elapsed().as_micros());
+                        fm_last_send = Instant::now();
                         tx_frame_capped.send(frame).expect("failed to send frame (capped)");
+                        let n = Instant::now();
+                        let nap = fm_next_send.duration_since(n);
+                        //println!("napping {} {} {}", n.duration_since(start).as_micros(), fm_next_send.duration_since(start).as_micros(), nap.as_micros());
+                        thread::sleep(nap);
+                        println!("napped {} {} ({})", nap.as_micros(), n.elapsed().as_micros(), frame_delay.as_micros());
+                        fm_next_send = fm_next_send.checked_add(frame_delay).expect("time math failed");
                         consecutive_skipped = 0;
                     } else {
                         consecutive_skipped += 1;
@@ -135,10 +156,10 @@ fn main() -> Result<(), eframe::Error> {
                     let start = Instant::now();
                     let mut next_send = Instant::now();
                     let mut last_send = Instant::now();
-                    let delay = Duration::from_secs_f64(1.0/TARGET_FPS);
                     // Send burst
                     for _ in 0..burst_size {
                         let frame = rx_frame.recv().expect("failed to rx frame");
+                        rx_tracker.add(());
                         println!("delay {}", last_send.elapsed().as_micros());
                         last_send = Instant::now();
                         tx_frame_capped.send(frame).expect("failed to send frame (capped)");
@@ -146,8 +167,8 @@ fn main() -> Result<(), eframe::Error> {
                         let nap = next_send.duration_since(n);
                         println!("napping {} {} {}", n.duration_since(start).as_micros(), next_send.duration_since(start).as_micros(), nap.as_micros());
                         thread::sleep(nap);
-                        println!("napped {} {} ({})", nap.as_micros(), n.elapsed().as_micros(), delay.as_micros());
-                        next_send = next_send.checked_add(delay).expect("time math failed");
+                        println!("napped {} {} ({})", nap.as_micros(), n.elapsed().as_micros(), frame_delay.as_micros());
+                        next_send = next_send.checked_add(frame_delay).expect("time math failed");
                     }
 
                     // Skip built-up frames
@@ -160,6 +181,9 @@ fn main() -> Result<(), eframe::Error> {
                         done = match res {
                             Ok(_) => false,
                             Err(_) => true,
+                        };
+                        if !done {
+                            rx_tracker.add(());
                         }
                     }
                     println!("skipped {_skipped} frames");
