@@ -12,15 +12,29 @@ enum ExposureMode {
     SCALED,
     ABSOLUTE,
 }
+enum FramePrintMode {
+    HEX,
+    DOT,
+    NONE,
+}
 
 const NX: usize = 8;
 const NY: usize = 8;
-const RX_BUF_SIZE: usize = 64*1024;
-const TARGET_FPS: f64 = 5.0; //CHECK Does the render hold things up and cause a pileup?
+// const RX_BUF_SIZE: usize = 64*1024;
+const RX_BUF_SIZE: usize = 1*1024;
+const TARGET_FPS: f64 = 10.0; //CHECK Does the render hold things up and cause a pileup?
+const TARGET_LATENCY: f64 = 0.5;
+const CATCHUP_FACTOR: f64 = 1.5;
+
 // const FRAME_MODE: FrameMode = FrameMode::BURST_N(2*TARGET_FPS as u64);
 const FRAME_MODE: FrameMode = FrameMode::REALTIME;
-// const EXPOSURE_MODE: ExposureMode = ExposureMode::ABSOLUTE;
-const EXPOSURE_MODE: ExposureMode = ExposureMode::SCALED;
+
+const EXPOSURE_MODE: ExposureMode = ExposureMode::ABSOLUTE;
+// const EXPOSURE_MODE: ExposureMode = ExposureMode::SCALED;
+
+const FRAME_PRINT_MODE: FramePrintMode = FramePrintMode::DOT;
+
+const IMMEDIATE: Duration = Duration::from_millis(0);
 
 
 fn main() -> Result<(), eframe::Error> {
@@ -67,11 +81,11 @@ fn main() -> Result<(), eframe::Error> {
     });
 
     let (tx_frame, rx_frame) = mpsc::sync_channel(1024*16);
-    let mut rx_fps0 = Arc::new(AtomicF64::new(0.0));
+    let rx_fps0 = Arc::new(AtomicF64::new(0.0));
 
     let rx_fps = rx_fps0.clone();
     thread::spawn(move || {
-        println!("Starting bytes to frames processor...");
+        println!("Starting bytes-to-frames processor...");
         let mut header: VecDeque<u8> = VecDeque::new();
         let mut skips: usize = 0;
         let mut tx_tracker = TimedTracker::new(Duration::from_secs(10));
@@ -96,7 +110,8 @@ fn main() -> Result<(), eframe::Error> {
                     }
                 }
 
-                tx_frame.send(frame).expect("failed to send frame");
+                // tx_frame.send(frame).expect("failed to send frame");
+                tx_frame.send(frame).unwrap_or(()); //DUMMY
                 
                 tx_tracker.add(());
                 rx_fps.store(tx_tracker.countPerSecond(), portable_atomic::Ordering::Relaxed);
@@ -117,40 +132,64 @@ fn main() -> Result<(), eframe::Error> {
     let rx_fps = rx_fps0.clone();
     thread::spawn(move || {
         println!("Starting limiter...");
-        let mut rx_tracker = TimedTracker::new(Duration::from_secs(10));
-        let mut consecutive_skipped = 0;
+        let mut buffer: VecDeque<Vec<Vec<i16>>> = VecDeque::new();
 
         let mut fm_next_send = Instant::now();
         let mut fm_last_send = Instant::now();
         let frame_delay = Duration::from_secs_f64(1.0/TARGET_FPS);
+        let mut fps_timer = RateLimiter::new(frame_delay);
     
         loop {
             //SHAME These are specific to FRAME_MODE
 
             match FRAME_MODE {
                 FrameMode::REALTIME => {
-                    let frame = rx_frame.recv().expect("failed to rx frame");
-                    rx_tracker.add(());
+                    // Pull available frames into buffer
+                    // let mut _skipped = -1;
+                    let mut done = false;
+                    while !done {
+                        // _skipped += 1;
+                        let res = rx_frame.recv_timeout(IMMEDIATE);
+                        done = match res {
+                            Ok(_) => {
+                                buffer.push_back(res.unwrap());
+                                false // Hot tip: you can't do `return blah` here, it'll return your surrounding function.  :|
+                            },
+                            Err(_) => true,
+                        };
+                    }
+                    // println!("skipped {_skipped} frames");
+
+                    // So we have all available frames, and probably some extra.
+                    // We also have the average rx_fps.
+                    // And a target fps.
+                    // So we skip N-1 frames, where 1/N = target_fps/rx_fps .
+                    //DUMMY //NEXT Handle gradual accumulations.
 
                     let rx_fps = rx_fps.load(portable_atomic::Ordering::Relaxed);
-                    // let rx_fps = rx_tracker.countPerSecond();
-                    let ratio = rx_fps / TARGET_FPS;
-                    if consecutive_skipped as f64 >= ratio - 1.0 {
-                        println!("processor stats {} {rx_fps} {TARGET_FPS} {ratio}", consecutive_skipped);
-                        println!("delay {}", fm_last_send.elapsed().as_micros());
-                        fm_last_send = Instant::now();
-                        tx_frame_capped.send(frame).expect("failed to send frame (capped)");
-                        let n = Instant::now();
-                        let nap = fm_next_send.duration_since(n);
-                        //println!("napping {} {} {}", n.duration_since(start).as_micros(), fm_next_send.duration_since(start).as_micros(), nap.as_micros());
-                        thread::sleep(nap);
-                        println!("napped {} {} ({})", nap.as_micros(), n.elapsed().as_micros(), frame_delay.as_micros());
-                        fm_next_send = fm_next_send.checked_add(frame_delay).expect("time math failed");
-                        consecutive_skipped = 0;
+                    let f = if buffer.len() as f64 > TARGET_LATENCY * rx_fps {
+                        CATCHUP_FACTOR
                     } else {
-                        consecutive_skipped += 1;
-                        continue;
+                        1.0
+                    };
+                    let n = (f * rx_fps / TARGET_FPS) as usize;
+
+                    if n > 1 {
+                        for _ in 0..(n-1) {
+                            buffer.pop_front();
+                        }
                     }
+
+                    // And show the next frame.
+                    println!("frame buffer: {}", buffer.len());
+                    if let Some(frame) = buffer.pop_front() {
+                        tx_frame_capped.send(frame).expect("failed to send frame (capped)");
+                    } else {
+                        println!("Frame buffer underrun");
+                    }
+
+                    // Then delay for target fps.
+                    fps_timer.interval_wait(); //THINK Under certain circumstance, delay_wait could be better.
                 },
                 FrameMode::BURST_N(burst_size) => {
                     let start = Instant::now();
@@ -159,7 +198,6 @@ fn main() -> Result<(), eframe::Error> {
                     // Send burst
                     for _ in 0..burst_size {
                         let frame = rx_frame.recv().expect("failed to rx frame");
-                        rx_tracker.add(());
                         println!("delay {}", last_send.elapsed().as_micros());
                         last_send = Instant::now();
                         tx_frame_capped.send(frame).expect("failed to send frame (capped)");
@@ -172,19 +210,15 @@ fn main() -> Result<(), eframe::Error> {
                     }
 
                     // Skip built-up frames
-                    let immediate = Duration::from_millis(0);
                     let mut _skipped = -1;
                     let mut done = false;
                     while !done {
                         _skipped += 1;
-                        let res = rx_frame.recv_timeout(immediate);
+                        let res = rx_frame.recv_timeout(IMMEDIATE);
                         done = match res {
                             Ok(_) => false,
                             Err(_) => true,
                         };
-                        if !done {
-                            rx_tracker.add(());
-                        }
                     }
                     println!("skipped {_skipped} frames");
                 },
@@ -222,7 +256,13 @@ impl eframe::App for RenderApp {
             self.last_time = cur_time;
             let mut rng = rand::thread_rng();
 
-            let frame = self.rx_frame.recv().expect("failed to rx frame");
+            // let frame = self.rx_frame.recv().expect("failed to rx frame");
+            let frame = self.rx_frame.recv();
+            if let Err(e) = frame {
+                println!("Error {}", e);
+                return;
+            }
+            let frame = frame.unwrap();
 
             let mut min: i16 = frame[0][0];
             let mut max: i16 = match EXPOSURE_MODE {
@@ -245,7 +285,9 @@ impl eframe::App for RenderApp {
             for (y, col) in frame.iter().enumerate() {
                 for (x, val) in col.iter().enumerate() {
                     // let n: u8 = *val as u8;
-                    print!("{:04X} ", val);
+                    if matches!(FRAME_PRINT_MODE, FramePrintMode::HEX) {
+                        print!("{:04X} ", val);
+                    }
                     let n = if max == min {
                         0xFF
                     } else {
@@ -254,10 +296,15 @@ impl eframe::App for RenderApp {
 
                     p.rect_filled(Rect{min:Pos2{x:(x*10) as f32,y:(y*10) as f32}, max:Pos2{x:((x+1)*10) as f32,y:((y+1)*10) as f32}}, Rounding::none(), Color32::from_rgb(n, n, n));
                 }
-                println!();
+                if matches!(FRAME_PRINT_MODE, FramePrintMode::HEX) {
+                    println!();
+                }
             }
             let t: u128 = now.elapsed().as_micros();
-            //println!("total {t}");
+            // println!("total {t}");
+            if matches!(FRAME_PRINT_MODE, FramePrintMode::DOT) {
+                println!(".");
+            }
 
             let cur_time = Instant::now();
             println!("elapsed ms in:  {}", cur_time.duration_since(self.last_time).as_millis());
@@ -326,5 +373,21 @@ impl RateLimiter {
             return true;
         }
         return false;
+    }
+    
+    fn interval_wait(&mut self) {
+        let delay = self.next_time.duration_since(Instant::now());
+        if !delay.is_zero() {
+            thread::sleep(delay);
+        }
+        self.next_time = self.next_time.checked_add(self.timeout).expect("time math failed");
+    }
+
+    fn delay_wait(&mut self) {
+        let delay = self.next_time.duration_since(Instant::now());
+        if !delay.is_zero() {
+            thread::sleep(delay);
+        }
+        self.next_time = Instant::now().checked_add(self.timeout).expect("time math failed");
     }
 }
