@@ -26,8 +26,8 @@ const TARGET_FPS: f64 = 10.0; //CHECK Does the render hold things up and cause a
 const TARGET_LATENCY: f64 = 0.5;
 const CATCHUP_FACTOR: f64 = 1.5;
 
-// const FRAME_MODE: FrameMode = FrameMode::BURST_N(2*TARGET_FPS as u64);
-const FRAME_MODE: FrameMode = FrameMode::REALTIME;
+const FRAME_MODE: FrameMode = FrameMode::BURST_N(2*TARGET_FPS as u64);
+// const FRAME_MODE: FrameMode = FrameMode::REALTIME;
 
 const EXPOSURE_MODE: ExposureMode = ExposureMode::ABSOLUTE;
 // const EXPOSURE_MODE: ExposureMode = ExposureMode::SCALED;
@@ -89,7 +89,6 @@ fn main() -> Result<(), eframe::Error> {
         let mut header: VecDeque<u8> = VecDeque::new();
         let mut skips: usize = 0;
         let mut tx_tracker = TimedTracker::new(Duration::from_secs(10));
-        let mut fps_print_limiter = RateLimiter::new(Duration::from_secs_f64(1.0/TARGET_FPS));
         loop {
             //DUMMY FR\n
             while header.len() < 3 {
@@ -115,9 +114,6 @@ fn main() -> Result<(), eframe::Error> {
                 
                 tx_tracker.add(());
                 rx_fps.store(tx_tracker.countPerSecond(), portable_atomic::Ordering::Relaxed);
-                if fps_print_limiter.go() {
-                    println!("base fps {}", tx_tracker.countPerSecond());
-                }
                 header.clear();
             } else {
                 skips = skips+1;
@@ -182,6 +178,7 @@ fn main() -> Result<(), eframe::Error> {
 
                     // And show the next frame.
                     println!("frame buffer: {}", buffer.len());
+                    println!("base fps {}", rx_fps);
                     if let Some(frame) = buffer.pop_front() {
                         tx_frame_capped.send(frame).expect("failed to send frame (capped)");
                     } else {
@@ -200,6 +197,8 @@ fn main() -> Result<(), eframe::Error> {
                         let frame = rx_frame.recv().expect("failed to rx frame");
                         println!("delay {}", last_send.elapsed().as_micros());
                         last_send = Instant::now();
+                        let rx_fps = rx_fps.load(portable_atomic::Ordering::Relaxed);
+                        println!("base fps {}", rx_fps);
                         tx_frame_capped.send(frame).expect("failed to send frame (capped)");
                         let n = Instant::now();
                         let nap = next_send.duration_since(n);
