@@ -16,8 +16,10 @@ const NX: usize = 8;
 const NY: usize = 8;
 const RX_BUF_SIZE: usize = 64*1024;
 const TARGET_FPS: f64 = 30.0; //CHECK Does the render hold things up and cause a pileup?
-const FRAME_MODE: FrameMode = FrameMode::BURST_N(2*TARGET_FPS as u64);
-const EXPOSURE_MODE: ExposureMode = ExposureMode::ABSOLUTE;
+// const FRAME_MODE: FrameMode = FrameMode::BURST_N(2*TARGET_FPS as u64);
+const FRAME_MODE: FrameMode = FrameMode::REALTIME;
+// const EXPOSURE_MODE: ExposureMode = ExposureMode::ABSOLUTE;
+const EXPOSURE_MODE: ExposureMode = ExposureMode::SCALED;
 
 
 fn main() -> Result<(), eframe::Error> {
@@ -69,6 +71,8 @@ fn main() -> Result<(), eframe::Error> {
         println!("Starting processor...");
         let mut header: VecDeque<u8> = VecDeque::new();
         let mut skips: usize = 0;
+        let mut tx_tracker = TimedTracker::new(Duration::from_secs(10));
+        let mut fps_print_limiter = RateLimiter::new(Duration::from_secs_f64(1.0/TARGET_FPS));
         loop {
             //DUMMY FR\n
             while header.len() < 3 {
@@ -90,6 +94,10 @@ fn main() -> Result<(), eframe::Error> {
                 }
 
                 tx_frame.send(frame).expect("failed to send frame");
+                tx_tracker.add(());
+                if fps_print_limiter.go() {
+                    println!("base fps {}", tx_tracker.countPerSecond());
+                }
                 header.clear();
             } else {
                 skips = skips+1;
@@ -271,5 +279,28 @@ impl<T> TimedTracker<T> {
     fn countPerSecond(&mut self) -> f64 {
         let t = self.clean();
         return (self.entries.len() as f64) / self.timeout.as_secs_f64();
+    }
+}
+
+struct RateLimiter {
+    next_time: Instant,
+    timeout: Duration,
+}
+
+impl RateLimiter {
+    pub fn new(timeout: Duration) -> Self {
+        Self {
+            next_time: Instant::now(),
+            timeout: timeout,
+        }
+    }
+
+    fn go(&mut self) -> bool {
+        let n = Instant::now();
+        if n >= self.next_time {
+            self.next_time = n.checked_add(self.timeout).expect("time math failed");
+            return true;
+        }
+        return false;
     }
 }
