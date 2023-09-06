@@ -1,4 +1,4 @@
-use std::{time::{Instant, Duration}, sync::{mpsc::{self, SyncSender, Receiver}, RwLock, Arc}, thread, collections::VecDeque, io::Read};
+use std::{time::{Instant, Duration}, sync::{mpsc::{self, SyncSender, Receiver}, RwLock, Arc}, thread, collections::VecDeque, io::Read, f64::consts::PI};
 
 use eframe::{egui, epaint::{Rect, Pos2, Rounding, Color32}};
 use portable_atomic::AtomicF64;
@@ -22,17 +22,20 @@ const NX: usize = 8;
 const NY: usize = 8;
 // const RX_BUF_SIZE: usize = 64*1024;
 const RX_BUF_SIZE: usize = 1*1024;
-const TARGET_FPS: f64 = 10.0; //CHECK Does the render hold things up and cause a pileup?
+const TARGET_FPS: f64 = 30.0; //CHECK Does the render hold things up and cause a pileup?
 const TARGET_LATENCY: f64 = 0.5;
 const CATCHUP_FACTOR: f64 = 1.5;
 
-const FRAME_MODE: FrameMode = FrameMode::BURST_N(2*TARGET_FPS as u64);
-// const FRAME_MODE: FrameMode = FrameMode::REALTIME;
+const DUMMY_MODE: bool = true;
+
+// const FRAME_MODE: FrameMode = FrameMode::BURST_N(2*TARGET_FPS as u64);
+const FRAME_MODE: FrameMode = FrameMode::REALTIME;
 
 const EXPOSURE_MODE: ExposureMode = ExposureMode::ABSOLUTE;
 // const EXPOSURE_MODE: ExposureMode = ExposureMode::SCALED;
 
 const FRAME_PRINT_MODE: FramePrintMode = FramePrintMode::DOT;
+// const FRAME_PRINT_MODE: FramePrintMode = FramePrintMode::HEX;
 
 const IMMEDIATE: Duration = Duration::from_millis(0);
 
@@ -43,42 +46,68 @@ fn main() -> Result<(), eframe::Error> {
     // Create a new channel
     let (tx_byte, rx_byte) = mpsc::sync_channel(1024*1024);
 
-    thread::spawn(move || {
-        println!("Starting reader...");
-        let device = ftdi::find_by_vid_pid(0x0403, 0x6014) // FT232H
-            .interface(ftdi::Interface::A)
-            .open();
-            
-        if let Ok(mut device) = device {
-            println!("Device found and opened");
-            device.usb_reset().unwrap();
-            device.usb_purge_buffers().unwrap();
-            device.set_latency_timer(16).unwrap();
-    
-            device.set_read_chunksize(0x10000);
-            device.usb_set_event_char(None).unwrap();
-            device.usb_set_error_char(None).unwrap();
-            device.set_bitmode(0x00, ftdi::BitMode::Reset).unwrap();
-    
-            //device.write(&[1,2,3,4]).unwrap();
-        
+    if DUMMY_MODE {
+        thread::spawn(move || {
+            println!("Starting dummy reader...");
+            let mut rng = rand::thread_rng();
+            let mut i: u64 = 0;
+            let mut rate = RateLimiter::new(Duration::from_millis(2));
             loop {
-                let mut buf: Vec<u8> = vec![0; RX_BUF_SIZE];
-                device.read_exact(&mut buf).expect("Received no data!"); //RAINY Handle partial reads?
+                tx_byte.send(b'F').expect("Failed to send");
+                tx_byte.send(b'R').expect("Failed to send");
+                tx_byte.send(b'\n').expect("Failed to send");
 
-                for i in 0..buf.len() {
-                    // Reverse bits, because the pico and ftdi are connected backwards
-                    buf[i] = buf[i].reverse_bits();
+                for _ in 0..NY {
+                    for _ in 0..NX {
+                        // let val: i16 = rng.gen_range(-0x10..=0x07FF);
+                        let val: i16 = ((0x07FF as f64)*((PI+(i as f64)/500.0).sin()+1.0)/2.0) as i16;
+                        // println!("{}", val);
+                        tx_byte.send((val & 0xFF) as u8).expect("Failed to send");
+                        tx_byte.send((val >> 8) as u8).expect("Failed to send");
+                    }
                 }
-
-                for i in buf {
-                    tx_byte.send(i).expect("Failed to send");
-                }
+                rate.interval_wait();
+                i += 1;
             }
-        } else {
-            println!("Cannot find/open device, runtime tests are NOP");
-        }
-    });
+        });
+    } else {
+        thread::spawn(move || {
+            println!("Starting reader...");
+            let device = ftdi::find_by_vid_pid(0x0403, 0x6014) // FT232H
+                .interface(ftdi::Interface::A)
+                .open();
+                
+            if let Ok(mut device) = device {
+                println!("Device found and opened");
+                device.usb_reset().unwrap();
+                device.usb_purge_buffers().unwrap();
+                device.set_latency_timer(16).unwrap();
+        
+                device.set_read_chunksize(0x10000);
+                device.usb_set_event_char(None).unwrap();
+                device.usb_set_error_char(None).unwrap();
+                device.set_bitmode(0x00, ftdi::BitMode::Reset).unwrap();
+        
+                //device.write(&[1,2,3,4]).unwrap();
+            
+                loop {
+                    let mut buf: Vec<u8> = vec![0; RX_BUF_SIZE];
+                    device.read_exact(&mut buf).expect("Received no data!"); //RAINY Handle partial reads?
+
+                    for i in 0..buf.len() {
+                        // Reverse bits, because the pico and ftdi are connected backwards
+                        buf[i] = buf[i].reverse_bits();
+                    }
+
+                    for i in buf {
+                        tx_byte.send(i).expect("Failed to send");
+                    }
+                }
+            } else {
+                println!("Cannot find/open device, runtime tests are NOP");
+            }
+        });
+    }
 
     let (tx_frame, rx_frame) = mpsc::sync_channel(1024*16);
     let rx_fps0 = Arc::new(AtomicF64::new(0.0));
@@ -228,6 +257,7 @@ fn main() -> Result<(), eframe::Error> {
     let app = RenderApp {
         rx_frame: rx_frame_capped,
         last_time: Instant::now(),
+        rx_fps: rx_fps0.clone(),
     };
 
 
@@ -245,6 +275,7 @@ fn main() -> Result<(), eframe::Error> {
 struct RenderApp {
     rx_frame: Receiver<Vec<Vec<i16>>>,
     last_time: Instant,
+    rx_fps: Arc<AtomicF64>,
 }
 
 impl eframe::App for RenderApp {
@@ -263,7 +294,10 @@ impl eframe::App for RenderApp {
             }
             let frame = frame.unwrap();
 
-            let mut min: i16 = frame[0][0];
+            let mut min: i16 = match EXPOSURE_MODE {
+                ExposureMode::ABSOLUTE => 0,
+                ExposureMode::SCALED => frame[0][0],
+            };
             let mut max: i16 = match EXPOSURE_MODE {
                 ExposureMode::ABSOLUTE => 0x07FF,
                 ExposureMode::SCALED => min,
@@ -279,6 +313,9 @@ impl eframe::App for RenderApp {
                 }
             }
 
+            let PIX_SX = 10;
+            let PIX_SY = 10;
+
             let now = Instant::now();
             let p = ui.painter_at(Rect{min:Pos2{x:0 as f32, y:0 as f32}, max:Pos2{x:400.0,y:400.0}});
             for (y, col) in frame.iter().enumerate() {
@@ -290,10 +327,10 @@ impl eframe::App for RenderApp {
                     let n = if max == min {
                         0xFF
                     } else {
-                        (((val - min) as i32 * 255) / (max - min) as i32) as u8
+                        ((((*val as i32) - (min as i32)) * 255) / ((max as i32) - (min as i32))) as u8
                     };
 
-                    p.rect_filled(Rect{min:Pos2{x:(x*10) as f32,y:(y*10) as f32}, max:Pos2{x:((x+1)*10) as f32,y:((y+1)*10) as f32}}, Rounding::none(), Color32::from_rgb(n, n, n));
+                    p.rect_filled(Rect{min:Pos2{x:(x*PIX_SX) as f32,y:(y*PIX_SY) as f32}, max:Pos2{x:((x+1)*PIX_SX) as f32,y:((y+1)*PIX_SY) as f32}}, Rounding::none(), Color32::from_rgb(n, n, n));
                 }
                 if matches!(FRAME_PRINT_MODE, FramePrintMode::HEX) {
                     println!();
@@ -304,6 +341,20 @@ impl eframe::App for RenderApp {
             if matches!(FRAME_PRINT_MODE, FramePrintMode::DOT) {
                 println!(".");
             }
+
+
+
+            // Other UI
+            ui.horizontal(|ui| {
+                ui.add_space((frame[0].len()*PIX_SX) as f32);
+                ui.vertical(|ui| {
+                    ui.label(format!("Base FPS: {}", self.rx_fps.load(portable_atomic::Ordering::Relaxed)));
+                    ui.label(format!("Base FPS: {}", self.rx_fps.load(portable_atomic::Ordering::Relaxed)));
+                });
+            });
+
+
+
 
             let cur_time = Instant::now();
             println!("elapsed ms in:  {}", cur_time.duration_since(self.last_time).as_millis());

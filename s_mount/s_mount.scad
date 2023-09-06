@@ -28,6 +28,8 @@ H3P = [172, 76];
 LP = [156.355, 90.315];
 
 SCREW_D = 2;
+JUMPER_HOLE_SX = 8;
+JUMPER_HOLE2_SY = 8;
 
 H = 13;
 T = 5;
@@ -56,7 +58,7 @@ module parts(holes=false) {
 //    translate([lp[0], lp[1], 0]) cylinder(d=S_MOUNT_ID+2*WT,);
 
 
-my() translate(-LP) difference() {
+my() translate(-LP) !difference() {
     union() {
         parts(holes=false);
         tz(H-T) linear_extrude(height=T) hull() projection() {
@@ -64,4 +66,6 @@ my() translate(-LP) difference() {
         }
     }
     parts(holes=true);
+    translate([H1P[0],H1P[1]+(SCREW_D+2*WT)/2,0]) ty($FOREVER/2) cube([JUMPER_HOLE_SX, $FOREVER, $FOREVER],center=true);
+    translate([H2P[0]+(JUMPER_HOLE_SX+SCREW_D+2*WT)/2,H2P[1]-JUMPER_HOLE2_SY,0]) ty($FOREVER/2) cube([JUMPER_HOLE_SX, $FOREVER, $FOREVER],center=true);
 }
