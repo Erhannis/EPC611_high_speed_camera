@@ -20,16 +20,16 @@ enum FramePrintMode {
 
 const NX: usize = 8;
 const NY: usize = 8;
-// const RX_BUF_SIZE: usize = 64*1024;
-const RX_BUF_SIZE: usize = 1*1024;
+const RX_BUF_SIZE: usize = 64*1024;
+// const RX_BUF_SIZE: usize = 1*1024;
 const TARGET_FPS: f64 = 30.0; //CHECK Does the render hold things up and cause a pileup?
 const TARGET_LATENCY: f64 = 0.5;
-const CATCHUP_FACTOR: f64 = 1.5;
+const CATCHUP_FACTOR: f64 = 2.0;
 
-const DUMMY_MODE: bool = true;
+const DUMMY_MODE: bool = false;
 
-// const FRAME_MODE: FrameMode = FrameMode::BURST_N(2*TARGET_FPS as u64);
-const FRAME_MODE: FrameMode = FrameMode::REALTIME;
+const FRAME_MODE: FrameMode = FrameMode::BURST_N(2*TARGET_FPS as u64);
+// const FRAME_MODE: FrameMode = FrameMode::REALTIME;
 
 const EXPOSURE_MODE: ExposureMode = ExposureMode::ABSOLUTE;
 // const EXPOSURE_MODE: ExposureMode = ExposureMode::SCALED;
@@ -92,15 +92,14 @@ fn main() -> Result<(), eframe::Error> {
             
                 loop {
                     let mut buf: Vec<u8> = vec![0; RX_BUF_SIZE];
+                    // let count = device.read(&mut buf).expect("Received no data!");
                     device.read_exact(&mut buf).expect("Received no data!"); //RAINY Handle partial reads?
+                    let count = buf.len();
 
-                    for i in 0..buf.len() {
+                    for i in 0..count {
                         // Reverse bits, because the pico and ftdi are connected backwards
-                        buf[i] = buf[i].reverse_bits();
-                    }
-
-                    for i in buf {
-                        tx_byte.send(i).expect("Failed to send");
+                        let v = buf[i].reverse_bits();
+                        tx_byte.send(v).expect("Failed to send");
                     }
                 }
             } else {
